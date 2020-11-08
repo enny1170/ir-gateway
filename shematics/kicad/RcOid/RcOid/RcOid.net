@@ -1,14 +1,14 @@
 (export (version D)
   (design
     (source C:\Users\install\Documents\Arduino\RcDoid\shematics\kicad\RcOid\RcOid\RcOid.sch)
-    (date "08.11.2020 13:14:10")
+    (date "08.11.2020 14:40:42")
     (tool "Eeschema (5.1.7)-1")
     (sheet (number 1) (name /) (tstamps /)
       (title_block
         (title "RcOid Ir Schaltung")
-        (company)
-        (rev 1)
-        (date 2020-10-30)
+        (company smart-devices.cf)
+        (rev 2)
+        (date 2020-11-08)
         (source RcOid.sch)
         (comment (number 1) (value ""))
         (comment (number 2) (value ""))
@@ -16,7 +16,7 @@
         (comment (number 4) (value "")))))
   (components
     (comp (ref R1)
-      (value 47)
+      (value 10)
       (footprint Resistor_THT:R_Axial_DIN0411_L9.9mm_D3.6mm_P15.24mm_Horizontal)
       (datasheet ~)
       (libsource (lib Device) (part R) (description Resistor))
