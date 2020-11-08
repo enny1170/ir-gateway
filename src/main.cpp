@@ -6,6 +6,7 @@
 #include <IRrecv.h>
 #include <IRutils.h>
 #include <ArduinoJson.h>
+#include <config.h>
 
 #define IR_PORT 0
 #define IR_PORT_INVERT false
@@ -15,7 +16,27 @@
   #define OFFSET_START   kStartOffset   // Usual rawbuf entry to start processing from.
 #endif
 
-#define SPIFFS_USE_MAGIC
+String getHtmlPrefix()
+{
+    return F("<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'> \
+        <title>ESP-RcOid</title><link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.8.2/css/bulma.min.css'> \
+        <script defer src='https://use.fontawesome.com/releases/v5.3.1/js/all.js'></script> \
+        <script src = 'https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script> \
+        <script>$(document).ready(function(){$('.navbar-burger').click(function() {$('.navbar-burger').toggleClass('is-active'); \
+        $('.navbar-menu').toggleClass('is-active');});});</script></head> \
+        <body><nav class = 'navbar has-shadow'><div class = 'navbar-brand'><a class = 'navbar-item' href = '/'>ESP-RcOid</a> \
+        <a role='button' class='navbar-burger' aria-label='menu' aria-expanded='true' ><span></span><span></span><span></span> \
+        </a></div><div class='navbar-menu'><div class='navbar-start'><div class='navbar-item'> \
+        <a class='navbar-item' href='wifi.html'>WiFi Settings</a><a class='navbar-item' href='mqtt.html'>MQTT Settings</a> \
+        <a class='navbar-item' href='reset.html'>System Reset</a><hr><a class='navbar-item' href='docu.html'>Readme</a></div> \
+        </div></div><div class='navbar-end'><!-- <div class='navbar-link'>Github</div> --></div></nav><section class='section'> \
+        <div class='container'><div class='content'>");
+}
+
+String getHtmlSuffix()
+{
+    return F("</div></div></section></body></html>");
+}
 
 // Netzwerkinformationen für Accesspoint
 // Im AP-Modus ist der ESP8266 unter der IP 192.168.0.1 erreichbar
@@ -29,11 +50,6 @@ ESP8266WebServer server(80);
 IRrecv irReceiver(IR_RECEIVER_PORT);
 decode_results irDecoded;
 
-// File Variable for Config
-File configFile;
-String ssid;
-String passwd;
-
 /*
    Gibt die CPU Takte zurück, die seit dem Neustart vergangen sind.
    läuft ca. alle 53 Sekunden über
@@ -46,27 +62,6 @@ static inline uint32_t get_ccount()
   return ccount;
 }
 
-/*
-    Initialize SPI Filesystem
-*/
-
-boolean initalizeFileSystem() {
-  bool initok = false;
-  initok = SPIFFS.begin();
-  if (!(initok)) // Format SPIFS, of not formatted. - Try 1
-  {
-    Serial.println("SPIFFS Filesystem formated.");
-    SPIFFS.format();
-    initok = SPIFFS.begin();
-  }
-  if (!(initok)) // Format SPIFS. - Try 2
-  {
-    SPIFFS.format();
-    initok = SPIFFS.begin();
-  }
-  if (initok) { Serial.println("SPIFFS is  OK"); } else { Serial.println("SPIFFS is not OK"); }
-  return initok;
-}
 
 /*
    Diese Webseite wird angezeigt, wenn der ESP im WLAN mit seiner lokalen IP abgerufen wird.
@@ -92,8 +87,12 @@ void handleAPRoot()
 {
 
   IPAddress ip = WiFi.softAPIP();
-  htmlcontent = "<html><head></head><body style='font-family: sans-serif; font-size: 12px'>ESP8266 f&uuml;r RCoid mit aktivem Access Point (IP: " +  String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) + ")";
-  htmlcontent += "<p>";
+  htmlcontent = getHtmlPrefix();
+  htmlcontent += "<div class='field'><div class='label'>ESP8266-RcDroid</div> \
+                  <div class='control'>AP-Mode, IP-Address: " 
+                  +  String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) + 
+                  "</div></div>";
+
   int n = WiFi.scanNetworks();
   if (n > 0)
   {
@@ -112,7 +111,7 @@ void handleAPRoot()
       if (WiFi.SSID(i) == WiFi.SSID())
       {
         IPAddress ip = WiFi.localIP();
-        htmlcontent += "</b>  verbunden mit lokaler IP " + String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
+        htmlcontent += "</b>  connected mit local IP " + String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
       }
       htmlcontent += "</li>";
     }
@@ -120,69 +119,67 @@ void handleAPRoot()
   }
   else
   {
-    htmlcontent += "Es konnten keine Netzwerke gefunden werden.";
+    htmlcontent += "No Networks found.";
   }
-  htmlcontent += "</p><form method='get' action='setting'><label>SSID: </label><input name='ssid'><input name='pass'><input type='submit'></form><br><br>";
-  htmlcontent += "<a href='/reset'>ESP8266 neu starten";
+  htmlcontent += F("<form method='GET' action='setting' ><div class='field'><div class='label'>SSID:</div> \
+    <div class='control'><input class='input' type='text' name='ssid'></div></div> \
+    <div class='field'><div class='label'>Password:</div><div class='control'><input class='input' type='password' name='pass'></div> \
+    </div><div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>");
+
+  htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-danger' href='/reset'>Reboot");
   if (WiFi.status() == WL_CONNECTED)
   {
-    htmlcontent += " und AP deaktivieren";
+    htmlcontent += " and deactivate AP";
   }
-  htmlcontent += ".</a>";
-  htmlcontent += "<p>";
-  htmlcontent += "<a href='/receiveir'>Receive Infrared Signal</a>";
-  htmlcontent += "</p>";
-
-  htmlcontent += "</body></html>";
-  server.send(200, "text/html", htmlcontent);
-}
-
-/*
-  Config File Helper Functions
-*/
-
-void writeConfig(String ssid,String passwd)
-{
-  const int capacity = JSON_OBJECT_SIZE(93);
-  StaticJsonDocument<capacity> doc;
-
-  configFile=SPIFFS.open("/config.json","w");
-  if(ssid.length()>1 && passwd.length()>0)
-  {
-    doc["ssid"]=ssid;
-    doc["passwd"]=passwd;
-  }
-  else
-  {
-    doc["ssid"]=".";
-    doc["passwd"]=".";
-  }
+  htmlcontent += F("</a><a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
   
-  serializeJson(doc,configFile);
-  configFile.flush();
-  configFile.close();
+  htmlcontent += getHtmlSuffix();
+  server.send(200,"text/html",htmlcontent);
+  // htmlcontent = "<html><head></head><body style='font-family: sans-serif; font-size: 12px'>ESP8266 f&uuml;r RCoid mit aktivem Access Point (IP: " +  String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) + ")";
+  // htmlcontent += "<p>";
+  // int n = WiFi.scanNetworks();
+  // if (n > 0)
+  // {
+  //   htmlcontent += "<ol>";
+  //   for (int i = 0; i < n; ++i)
+  //   {
+  //     // Print SSID and RSSI for each network found
+  //     htmlcontent += "<li>";
+  //     if (WiFi.SSID(i) == WiFi.SSID())
+  //       htmlcontent += "<b>";
+  //     htmlcontent += WiFi.SSID(i);
+  //     htmlcontent += " (";
+  //     htmlcontent += WiFi.RSSI(i);
+  //     htmlcontent += ")";
+  //     htmlcontent += (WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*";
+  //     if (WiFi.SSID(i) == WiFi.SSID())
+  //     {
+  //       IPAddress ip = WiFi.localIP();
+  //       htmlcontent += "</b>  verbunden mit lokaler IP " + String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
+  //     }
+  //     htmlcontent += "</li>";
+  //   }
+  //   htmlcontent += "</ol>";
+  // }
+  // else
+  // {
+  //   htmlcontent += "Es konnten keine Netzwerke gefunden werden.";
+  // }
+  // htmlcontent += "</p><form method='get' action='setting'><label>SSID: </label><input name='ssid'><input name='pass'><input type='submit'></form><br><br>";
+  // htmlcontent += "<a href='/reset'>ESP8266 neu starten";
+  // if (WiFi.status() == WL_CONNECTED)
+  // {
+  //   htmlcontent += " und AP deaktivieren";
+  // }
+  // htmlcontent += ".</a>";
+  // htmlcontent += "<p>";
+  // htmlcontent += "<a href='/receiveir'>Receive Infrared Signal</a>";
+  // htmlcontent += "</p>";
+
+  // htmlcontent += "</body></html>";
+  // server.send(200, "text/html", htmlcontent);
 }
 
-void readConfig()
-{
-  const int capacity = JSON_OBJECT_SIZE(93);
-  StaticJsonDocument<capacity> doc;
-
-  Serial.println("Try to load Config from file");
-  configFile=SPIFFS.open("/config.json","r");
-  DeserializationError err = deserializeJson(doc, configFile);
-  configFile.close();
-  if(err)
-  {
-    Serial.println("Unable to read Config Data (Json Error)");
-    Serial.println(err.c_str());
-  }
-  else
-  {
-    ssid= doc["ssid"].as<String>();
-    passwd= doc["passwd"].as<String>();
-  }
-}
 
 /*
    diese Funktion löscht die Zugangsdaten aus dem EEPROM
@@ -581,22 +578,12 @@ void setup(void) {
   digitalWrite(LED_BUILTIN,HIGH);
   Serial.begin(115200);
   // Serial.println("Init Filesystem");
-  // initalizeFileSystem();
+  
+  initFileSystem();
 
-  Serial.println("Mounting FS...");
-  if (!SPIFFS.begin()) {
-    Serial.println("Failed to mount file system");
-    return;
-  }
 
   Serial.println("Test File");
-  //check Config File is exists, or create one
-  if(!SPIFFS.exists("/config.json"))
-  {
-    Serial.println("Try to create Config File");
-    writeConfig("","");
-  }
-
+  checkConfig();
   // try to load Config
   readConfig();
 
