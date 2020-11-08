@@ -5,9 +5,9 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "RcOid Ir Schaltung"
-Date "2020-10-30"
-Rev "1"
-Comp ""
+Date "2020-11-08"
+Rev "2"
+Comp "smart-devices.cf"
 Comment1 ""
 Comment2 ""
 Comment3 ""
@@ -167,10 +167,10 @@ Wire Wire Line
 Wire Wire Line
 	3100 4350 2450 4350
 $Comp
-L Device:Q_NMOS_GDS Q?
+L Device:Q_NMOS_GDS Q1
 U 1 1 5FA71831
 P 3850 3100
-F 0 "Q?" H 4054 3146 50  0000 L CNN
+F 0 "Q1" H 4054 3146 50  0000 L CNN
 F 1 "IRLU024N" H 4054 3055 50  0000 L CNN
 F 2 "" H 4050 3200 50  0001 C CNN
 F 3 "~" H 3850 3100 50  0001 C CNN
