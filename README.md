@@ -1,5 +1,9 @@
 # Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+This is a fork of the famous [ESP8266-RcOid](https://www.rcoid.de/ESP8266.html) Project
+
+the Hardware is changed to a Wemos D1 mini pro, and the software upddated to support this.
+
+later we want to add MQTT protoll support for Smart-Home usage
 
 # Getting Started
 TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
