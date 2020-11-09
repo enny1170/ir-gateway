@@ -6,16 +6,18 @@
 #include <IRrecv.h>
 #include <IRutils.h>
 #include <ArduinoJson.h>
+#include <Config.h>
+#include <WebServerImpl.h>
 
 #define IR_PORT 0
 #define IR_PORT_INVERT false
 #define IR_RECEIVER_PORT 2
+#define IR_RECEIVE_WAIT_TIME 30000
 
 #ifndef OFFSET_START
   #define OFFSET_START   kStartOffset   // Usual rawbuf entry to start processing from.
 #endif
 
-#define SPIFFS_USE_MAGIC
 
 // Netzwerkinformationen für Accesspoint
 // Im AP-Modus ist der ESP8266 unter der IP 192.168.0.1 erreichbar
@@ -23,16 +25,6 @@ const char* ssidAP = "ESP8266 for RCoid Access Point";
 const char* passwordAP = "passpass";  //Muss mindestens 8 Zeichen haben
 
 char ir[1024];
-String htmlcontent;
-ESP8266WebServer server(80);
-
-IRrecv irReceiver(IR_RECEIVER_PORT);
-decode_results irDecoded;
-
-// File Variable for Config
-File configFile;
-String ssid;
-String passwd;
 
 /*
    Gibt die CPU Takte zurück, die seit dem Neustart vergangen sind.
@@ -46,229 +38,6 @@ static inline uint32_t get_ccount()
   return ccount;
 }
 
-/*
-    Initialize SPI Filesystem
-*/
-
-boolean initalizeFileSystem() {
-  bool initok = false;
-  initok = SPIFFS.begin();
-  if (!(initok)) // Format SPIFS, of not formatted. - Try 1
-  {
-    Serial.println("SPIFFS Filesystem formated.");
-    SPIFFS.format();
-    initok = SPIFFS.begin();
-  }
-  if (!(initok)) // Format SPIFS. - Try 2
-  {
-    SPIFFS.format();
-    initok = SPIFFS.begin();
-  }
-  if (initok) { Serial.println("SPIFFS is  OK"); } else { Serial.println("SPIFFS is not OK"); }
-  return initok;
-}
-
-/*
-   Diese Webseite wird angezeigt, wenn der ESP im WLAN mit seiner lokalen IP abgerufen wird.
-*/
-void handleRoot()
-{
-  htmlcontent = "<html><head></head><body style='font-family: sans-serif; font-size: 12px'>ESP8266 f&uuml;r RCoid";
-  htmlcontent += "<p>";
-  htmlcontent += "<a href='/receiveir'>Receive Infrared Signal</a>";
-  htmlcontent += "</p>";
-  htmlcontent += "<p>";
-  htmlcontent += "<a href='/deletepass'>WLAN Zugangsdaten l&ouml;schen</a>";
-  htmlcontent += "</p>";
-  htmlcontent += "</body></html>";
-  server.send(200, "text/html", htmlcontent);
-}
-
-/*
-   Diese Webseite wird angezeigt, wenn der ESP im AP-Modus mit seiner IP 192.168.0.1 abgerufen wird.
-   Hier kann man dann die SSID und das Password des WLAN eingeben und den ESP neu starten.
-*/
-void handleAPRoot()
-{
-
-  IPAddress ip = WiFi.softAPIP();
-  htmlcontent = "<html><head></head><body style='font-family: sans-serif; font-size: 12px'>ESP8266 f&uuml;r RCoid mit aktivem Access Point (IP: " +  String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) + ")";
-  htmlcontent += "<p>";
-  int n = WiFi.scanNetworks();
-  if (n > 0)
-  {
-    htmlcontent += "<ol>";
-    for (int i = 0; i < n; ++i)
-    {
-      // Print SSID and RSSI for each network found
-      htmlcontent += "<li>";
-      if (WiFi.SSID(i) == WiFi.SSID())
-        htmlcontent += "<b>";
-      htmlcontent += WiFi.SSID(i);
-      htmlcontent += " (";
-      htmlcontent += WiFi.RSSI(i);
-      htmlcontent += ")";
-      htmlcontent += (WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*";
-      if (WiFi.SSID(i) == WiFi.SSID())
-      {
-        IPAddress ip = WiFi.localIP();
-        htmlcontent += "</b>  verbunden mit lokaler IP " + String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
-      }
-      htmlcontent += "</li>";
-    }
-    htmlcontent += "</ol>";
-  }
-  else
-  {
-    htmlcontent += "Es konnten keine Netzwerke gefunden werden.";
-  }
-  htmlcontent += "</p><form method='get' action='setting'><label>SSID: </label><input name='ssid'><input name='pass'><input type='submit'></form><br><br>";
-  htmlcontent += "<a href='/reset'>ESP8266 neu starten";
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    htmlcontent += " und AP deaktivieren";
-  }
-  htmlcontent += ".</a>";
-  htmlcontent += "<p>";
-  htmlcontent += "<a href='/receiveir'>Receive Infrared Signal</a>";
-  htmlcontent += "</p>";
-
-  htmlcontent += "</body></html>";
-  server.send(200, "text/html", htmlcontent);
-}
-
-/*
-  Config File Helper Functions
-*/
-
-void writeConfig(String ssid,String passwd)
-{
-  const int capacity = JSON_OBJECT_SIZE(93);
-  StaticJsonDocument<capacity> doc;
-
-  configFile=SPIFFS.open("/config.json","w");
-  if(ssid.length()>1 && passwd.length()>0)
-  {
-    doc["ssid"]=ssid;
-    doc["passwd"]=passwd;
-  }
-  else
-  {
-    doc["ssid"]=".";
-    doc["passwd"]=".";
-  }
-  
-  serializeJson(doc,configFile);
-  configFile.flush();
-  configFile.close();
-}
-
-void readConfig()
-{
-  const int capacity = JSON_OBJECT_SIZE(93);
-  StaticJsonDocument<capacity> doc;
-
-  Serial.println("Try to load Config from file");
-  configFile=SPIFFS.open("/config.json","r");
-  DeserializationError err = deserializeJson(doc, configFile);
-  configFile.close();
-  if(err)
-  {
-    Serial.println("Unable to read Config Data (Json Error)");
-    Serial.println(err.c_str());
-  }
-  else
-  {
-    ssid= doc["ssid"].as<String>();
-    passwd= doc["passwd"].as<String>();
-  }
-}
-
-/*
-   diese Funktion löscht die Zugangsdaten aus dem EEPROM
-*/
-void handleDeletePass()
-{
-  htmlcontent = "<!DOCTYPE HTML>\r\n<html>";
-  htmlcontent += "<p>Clearing the Config</p></html>";
-  server.send(200, "text/html", htmlcontent);
-  Serial.println("clearing config");
-  writeConfig("","");
-  ESP.restart();
-}
-
-/*
-   Diese Webseite wird angezeigt, wenn eine unbekannte URL abgerufen wird.
-*/
-void handleNotFound() {
-  htmlcontent = "File Not Found\n\n";
-  htmlcontent += "URI: ";
-  htmlcontent += server.uri();
-  htmlcontent += "\nMethod: ";
-  htmlcontent += (server.method() == HTTP_GET) ? "GET" : "POST";
-  htmlcontent += "\nArguments: ";
-  htmlcontent += server.args();
-  htmlcontent += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    htmlcontent += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-  server.send(404, "text/plain", htmlcontent);
-}
-
-/*
-   Gibt den Interger-Wert einers Argumentes zurück.
-   oder -1. falls das Argument nicht existiert
-*/
-int getArgValue(String name)
-{
-  for (uint8_t i = 0; i < server.args(); i++)
-    if (server.argName(i) == name)
-      return server.arg(i).toInt();
-  return -1;
-}
-
-/*
-   Zeigt Informationen zur HTTP-Anfrage im Serial-Monitor an
-*/
-void serial_print_HttpInfo()
-{
-  String message = "\n\n";
-  message += "Time: " + String(millis(), DEC) + "\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-  Serial.println(message);
-}
-
-/*
-   Zeigt eine Liste mit verfügbaren Netzwerken im Serial-Monitor an
-*/
-void serial_print_Networks()
-{
-  int n = WiFi.scanNetworks();
-
-  Serial.println("\nScan abgeschossen");
-  if (n == 0)
-    Serial.println("Kein WLAN gefunden");
-  else
-  {
-    for (int i = 0; i < n; ++i)
-    {
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? "" : " (verschlüsselt)");
-    }
-  }
-  Serial.println("");
-}
 
 /*
    sendet ein RCoid-IR-Signal
@@ -319,131 +88,10 @@ void handleIr()
   }
   htmlcontent = "OK";
   server.send(200, "text/plain", htmlcontent);
-
-
 }
 
-/**
-   Schaltete einen beliebigen GPIO Pin.
-   z.B.: http://ip.of.your.device/out?port=0&value=1     //schaltet GPIO0 an
-         http://ip.of.your.device/out?port=5&value=t     //wechselt den Zustand von GPIO5
-*/
-void handleOut()
-{
-  serial_print_HttpInfo();
-
-  if (server.arg("port").length() == 0
-      || server.arg("value").length() == 0)
-  {
-    handleNotFound();
-    return;
-  }
-
-  int port = getArgValue("port");
-  Serial.print("Port ");
-  Serial.println(port);
-
-  if (port < 0 || port > 15)
-  {
-    Serial.println("Port out of range. Abort!");
-    htmlcontent = "Port out of range.";
-    server.send(400, "text/plain", htmlcontent);
-    return;
-  }
-
-  Serial.print("Value ");
-
-  if (server.arg("value") == "t")
-  {
-    Serial.println("t (Toggle)");
-    if (port != -1)
-    {
-      pinMode(port, OUTPUT);
-      digitalWrite(port, !digitalRead(port));
-    }
-  }
-  else
-  {
-    int value = getArgValue("value");
-    Serial.println(value);
-
-    if (port != -1 && value != -1)
-    {
-      pinMode(port, OUTPUT);
-      digitalWrite(port, value == 0 ? LOW : HIGH);
-    }
-  }
-
-  htmlcontent = "OK";
-  server.send(200, "text/plain", htmlcontent);
-
-}
-
-/*
-   setzt den ESP zurück, damit er sich neu verbindet (nur im AP- und AP_STA-Modus)
-   Wenn sich der ESP dann im WLAN einwählen konnte, startet er im STA-Modus
-
-   Achtung: funktioniert das erste mal nach dem Flashen nicht! Der ESP muss dann mit dem Reset-Taster neu gestartet werden.
-*/
-void handleReset()
-{
-  Serial.println("ESP wird neu gestartet!");
-  ESP.restart();
-}
-
-/*
-   gibt die IP als Klartext zurück (nur im AP- und AP_STA-Modus)
-   wird von RCoid abgefragt um festzustellen, ob der ESP mit dem WLAN verbunden ist
-   wird von RCoid automatisch in der App eingetragen
-*/
-void handleGetIp()
-{
-  IPAddress ip = WiFi.localIP();
-  htmlcontent = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
-  server.send(200, "text/plain", htmlcontent);
-  Serial.println("Get IP = " + htmlcontent);
-}
-
-
-
-/*
-   speicher die SSID und das Password in den EEPROM
-   und versucht sich anschließend im WLAN einzuloggen.
-
-   Wenn das gelingt wird RCoid die IP abrufen und den ESP neu startet
-*/
-void handleSetting()
-{
-  serial_print_HttpInfo();
-  String qsid = server.arg("ssid");
-  String qpass = server.arg("pass");
-  if (qsid.length() > 0 && qpass.length() > 0)
-  {
-    writeConfig(qsid,qpass);
-
-    htmlcontent = "<html><head><meta http-equiv=\"refresh\" content=\"0; URL=../\"></head><body style='font-family: sans-serif; font-size: 12px'>";
-    htmlcontent += "OK";
-    htmlcontent += "</body></html>";
-    server.send(200, "text/html", htmlcontent);
-
-    Serial.println("AP_STA-Modus wird aktiviert");
-
-    ESP.restart();
-
-    // WiFi.mode(WIFI_AP_STA);
-    // delay(100);
-
-    // WiFi.begin(qsid.c_str(), qpass.c_str());
-    // Serial.println("Wifi Restarted");
-    // Serial.println(WiFi.status());
-    // Serial.println(WiFi.localIP());
-  }
-  else
-  {
-    handleNotFound();
-  }
-
-}
+IRrecv irReceiver(IR_RECEIVER_PORT);
+decode_results irDecoded;
 
 
 /*
@@ -456,45 +104,56 @@ void handleReceiveIr()
   irReceiver.enableIRIn();  // Start the receiver
   unsigned long start = millis();
 
-  while (millis() < start + 30000)
+  String irData;
+
+  while (millis() < start + IR_RECEIVE_WAIT_TIME)
   {
     if (irReceiver.decode(&irDecoded))
     {
-      htmlcontent = "{\n";
-      htmlcontent += "  \"Protocol\" : ";
-      htmlcontent += "\"";
-      htmlcontent += typeToString(irDecoded.decode_type, false);
-      htmlcontent += "\",\n";
-      htmlcontent += "  \"Value\" : \"";
-      htmlcontent += uint64ToString(irDecoded.value, HEX);
-      htmlcontent += "\",\n";
-      htmlcontent += "  \"Length\" : \"";
-      htmlcontent += irDecoded.rawlen;
-      htmlcontent += "\",\n";
-      htmlcontent += "  \"Address\" : \"";
-      htmlcontent += irDecoded.address;
-      htmlcontent += "\",\n";
-      htmlcontent += "  \"Command\" : \"";
-      htmlcontent += irDecoded.command;
-      htmlcontent += "\",\n";
-      htmlcontent += "  \"RCoid IR Code\" : \"";
+      //Read and format IrData
+      irData = "{\n";
+      irData += "  \"Protocol\" : ";
+      irData += "\"";
+      irData += typeToString(irDecoded.decode_type, false);
+      irData += "\",\n";
+      irData += "  \"Value\" : \"";
+      irData += uint64ToString(irDecoded.value, HEX);
+      irData += "\",\n";
+      irData += "  \"Length\" : \"";
+      irData += irDecoded.rawlen;
+      irData += "\",\n";
+      irData += "  \"Address\" : \"";
+      irData += irDecoded.address;
+      irData += "\",\n";
+      irData += "  \"Command\" : \"";
+      irData += irDecoded.command;
+      irData += "\",\n";
+      irData += "  \"RCoid IR Code\" : \"";
       int freq = 38000;
       if (typeToString(irDecoded.decode_type, false).equals("SONY"))
         freq = 40000;
-      htmlcontent += freq;
+      irData += freq;
       for (int i = OFFSET_START; i < irDecoded.rawlen; i++)
       {
-        htmlcontent += ",";
-        htmlcontent += (int)(((irDecoded.rawbuf[i] * RAWTICK) * freq) / 1000000);
+        irData += ",";
+        irData += (int)(((irDecoded.rawbuf[i] * RAWTICK) * freq) / 1000000);
       }
       if (irDecoded.rawlen % 2 == 0)
       {
-        htmlcontent += ",1";
+        irData += ",1";
       }
-      htmlcontent += "\"\n";
-      htmlcontent += "}";
+      irData += "\"\n";
+      irData += "}";
+      // create HTML
+      htmlcontent = getHtmlPrefix();
+      htmlcontent += "<div class='field'><div class='control'>";
+      htmlcontent += irData;
+      htmlcontent += "</div></div>";
+      htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
+      htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
+      htmlcontent += getHtmlSuffix();
 
-      Serial.println(htmlcontent);
+      Serial.println(irData);
 
       server.send(200, "application/json", htmlcontent);
 
@@ -505,10 +164,40 @@ void handleReceiveIr()
     }
     delay(100);
   };
+  htmlcontent = getHtmlPrefix();
+  htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
+  htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
+  htmlcontent += getHtmlSuffix();
 
-  server.send(408, "text/plain", "No IR Signal received!");
+  server.send(408, "text/plain", htmlcontent);
 
 }
+
+
+/*
+   Zeigt eine Liste mit verfügbaren Netzwerken im Serial-Monitor an
+*/
+void serial_print_Networks()
+{
+  int n = WiFi.scanNetworks();
+
+  Serial.println("\nScan abgeschossen");
+  if (n == 0)
+    Serial.println("Kein WLAN gefunden");
+  else
+  {
+    for (int i = 0; i < n; ++i)
+    {
+      Serial.print(i + 1);
+      Serial.print(": ");
+      Serial.print(WiFi.SSID(i));
+      Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? "" : " (verschlüsselt)");
+    }
+  }
+  Serial.println("");
+}
+
+
 
 /*
    Wartet die gegebene Zeit t(in s)ab, bis die Verbindung zum WLAN besteht.
@@ -581,22 +270,12 @@ void setup(void) {
   digitalWrite(LED_BUILTIN,HIGH);
   Serial.begin(115200);
   // Serial.println("Init Filesystem");
-  // initalizeFileSystem();
+  
+  initFileSystem();
 
-  Serial.println("Mounting FS...");
-  if (!SPIFFS.begin()) {
-    Serial.println("Failed to mount file system");
-    return;
-  }
 
   Serial.println("Test File");
-  //check Config File is exists, or create one
-  if(!SPIFFS.exists("/config.json"))
-  {
-    Serial.println("Try to create Config File");
-    writeConfig("","");
-  }
-
+  checkConfig();
   // try to load Config
   readConfig();
 
