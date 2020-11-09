@@ -14,7 +14,7 @@ String htmlcontent;
 */
 String getHtmlPrefix()
 {
-    return F("<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'> \
+    /*return F("<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'> \
         <title>ESP-RcOid</title><link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.8.2/css/bulma.min.css'> \
         <script defer src='https://use.fontawesome.com/releases/v5.3.1/js/all.js'></script> \
         <script src = 'https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script> \
@@ -25,6 +25,20 @@ String getHtmlPrefix()
         </a></div><div class='navbar-menu'><div class='navbar-start'><div class='navbar-item'> \
         <a class='navbar-item' href='wifi.html'>WiFi Settings</a><a class='navbar-item' href='mqtt.html'>MQTT Settings</a> \
         <a class='navbar-item' href='reset.html'>System Reset</a><hr><a class='navbar-item' href='docu.html'>Readme</a></div> \
+        </div></div><div class='navbar-end'><!-- <div class='navbar-link'>Github</div> --></div></nav><section class='section'> \
+        <div class='container'><div class='content'>");
+    */
+    return F("<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'> \
+        <title>ESP-RcOid</title><link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.8.2/css/bulma.min.css'> \
+        <script defer src='https://use.fontawesome.com/releases/v5.3.1/js/all.js'></script> \
+        <script src = 'https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script> \
+        <script>$(document).ready(function(){$('.navbar-burger').click(function() {$('.navbar-burger').toggleClass('is-active'); \
+        $('.navbar-menu').toggleClass('is-active');});});</script></head> \
+        <body><nav class = 'navbar has-shadow'><div class = 'navbar-brand'><a class = 'navbar-item' href = '/'>ESP-RcOid</a> \
+        <a role='button' class='navbar-burger' aria-label='menu' aria-expanded='true' ><span></span><span></span><span></span> \
+        </a></div><div class='navbar-menu'><div class='navbar-start'><div class='navbar-item'> \
+        <a class='navbar-item' href='/mqtt'>MQTT Settings</a> \
+        <hr><a class='navbar-item' href='docu.html'>Readme</a></div> \
         </div></div><div class='navbar-end'><!-- <div class='navbar-link'>Github</div> --></div></nav><section class='section'> \
         <div class='container'><div class='content'>");
 }
