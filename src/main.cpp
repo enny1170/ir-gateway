@@ -335,6 +335,7 @@ void setup(void) {
   // try to load Config
   readConfig();
 
+  checkMqttConfig();
   Serial.print("SSID: ");
   Serial.println(ssid);
   Serial.print("PASS: ");
@@ -369,7 +370,7 @@ void setup(void) {
       server.begin();
       Serial.println("HTTP server started");
       Serial.println("Start MqttClient");
-      mqttConnect();
+      //mqttConnect();
       return;
     }
   }
@@ -383,5 +384,5 @@ void setup(void) {
 void loop()
 {
   server.handleClient();
-  mqttClient.loop();
+  //mqttClient.loop();
 }

@@ -25,7 +25,7 @@ String deviceName=getESPDevName();
 void initFileSystem()
 {
 #if filesystem == littlefs
-    Serial.println("Mounting SPIFFS...");
+    Serial.println("Mounting Flash...");
     if (!LittleFS.begin())
     {
         Serial.println("Failed to mount file system. Format it");

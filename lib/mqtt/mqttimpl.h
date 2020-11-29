@@ -84,6 +84,10 @@ String mqttReconnect()
 void mqttConnect()
 {
     readMqttConfig();
+    Serial.print("MQTT Server: ");
+    Serial.println(mqttServer);
+    Serial.print("MQTT Port: ");
+    Serial.println(mqttPort);
     if(mqttClient.connected())
     {
         mqttClient.disconnect();
@@ -96,8 +100,8 @@ void mqttConnect()
         {
             // User settings ignored at this moment
         }
+        mqttReconnect();
     }
-    mqttReconnect();
 }
 
 #endif
