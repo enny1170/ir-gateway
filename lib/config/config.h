@@ -11,10 +11,16 @@
     #define SPIFFS_USE_MAGIC
 #endif
 
+#define CONFIG_SIZE 145
+#define CONFIG_FILE_NAME "/config.json"
+
+String getESPDevName();
+
 // Variables for Config
 File configFile;
 String ssid;
 String passwd;
+String deviceName=getESPDevName();
 
 void initFileSystem()
 {
@@ -47,26 +53,28 @@ void initFileSystem()
   Config File Helper Functions
 */
 
-void writeConfig(String ssid,String passwd)
+void writeConfig(String ssid,String passwd,String device=getESPDevName())
 {
-  const int capacity = JSON_OBJECT_SIZE(93);
+  const int capacity = JSON_OBJECT_SIZE(CONFIG_SIZE);
   StaticJsonDocument<capacity> doc;
 
 #if filesystem == littlefs
-  configFile=LittleFS.open("/config.json","w");
+  configFile=LittleFS.open(CONFIG_FILE_NAME,"w");
 #else
-  configFile=SPIFFS.open("/config.json","w");
+  configFile=SPIFFS.open(CONFIG_FILE_NAME,"w");
 #endif
 
   if(ssid.length()>1 && passwd.length()>0)
   {
     doc["ssid"]=ssid;
     doc["passwd"]=passwd;
+    doc["deviceName"]=deviceName;
   }
   else
   {
     doc["ssid"]=".";
     doc["passwd"]=".";
+    doc["deviceName"]=deviceName;
   }
   
   serializeJson(doc,configFile);
@@ -76,15 +84,15 @@ void writeConfig(String ssid,String passwd)
 
 void readConfig()
 {
-  const int capacity = JSON_OBJECT_SIZE(93);
+  const int capacity = JSON_OBJECT_SIZE(CONFIG_SIZE);
   StaticJsonDocument<capacity> doc;
 
   Serial.println("Try to load Config from file");
 
 #if filesystem == littlefs
-  configFile=LittleFS.open("/config.json","r");
+  configFile=LittleFS.open(CONFIG_FILE_NAME,"r");
 #else
-  configFile=SPIFFS.open("/config.json","r");
+  configFile=SPIFFS.open(CONFIG_FILE_NAME,"r");
 #endif
 
   DeserializationError err = deserializeJson(doc, configFile);
@@ -98,6 +106,7 @@ void readConfig()
   {
     ssid= doc["ssid"].as<String>();
     passwd= doc["passwd"].as<String>();
+    deviceName=doc["deviceName"].as<String>();
   }
 }
 
@@ -106,13 +115,13 @@ void checkConfig()
   //check Config File is exists, or create one
 
 #if filesystem == littlefs
-  if(!LittleFS.exists("/config.json"))
+  if(!LittleFS.exists(CONFIG_FILE_NAME))
   {
     Serial.println("Try to create Config File");
     writeConfig("","");
   }
 #else
-  if(!SPIFFS.exists("/config.json"))
+  if(!SPIFFS.exists(CONFIG_FILE_NAME))
   {
     Serial.println("Try to create Config File");
     writeConfig("","");
@@ -121,4 +130,12 @@ void checkConfig()
 
 
 }
+
+String getESPDevName()
+{
+  char devName[30];
+  snprintf(devName,30,"ESP-%08X",ESP.getChipId());
+  return (String)devName;
+}
+
 #endif

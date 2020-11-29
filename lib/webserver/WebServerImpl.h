@@ -5,9 +5,19 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <Arduino.h>
+#include <mqttconf.h>
+#include <mqttimpl.h>
+#include <ircodes.h>
 
 ESP8266WebServer server(80);
 String htmlcontent;
+
+//this method implements the IrCode Sending without HTTP
+//is implemented in main.cpp this is only a link for it
+//should be moved later
+extern void handleIrCode(String code);
+
+void serial_print_HttpInfo();
 
 /*
     Returns HTML-Prefix for each Page
@@ -38,8 +48,8 @@ String getHtmlPrefix()
         <a role='button' class='navbar-burger' aria-label='menu' aria-expanded='true' ><span></span><span></span><span></span> \
         </a></div><div class='navbar-menu'><div class='navbar-start'><div class='navbar-item'> \
         <a class='navbar-item' href='/mqtt'>MQTT Settings</a> \
-        <hr><a class='navbar-item' href='docu.html'>Readme</a></div> \
-        </div></div><div class='navbar-end'><!-- <div class='navbar-link'>Github</div> --></div></nav><section class='section'> \
+        <hr><a class='navbar-item' href='cmds'>Commands</a> <a class='navbar-item' href='docu.html'>Readme</a></div> \
+        </div></div><div class='navbar-end'></div></nav><section class='section'> \
         <div class='container'><div class='content'>");
 }
 
@@ -52,6 +62,74 @@ String getHtmlSuffix()
 }
 
 /*
+  Wird aufgerufen wnn die MQTT-Seite angefordert wird
+*/
+void handleMqtt()
+{
+  readMqttConfig();
+  htmlcontent=getHtmlPrefix();
+  htmlcontent+=F("<form method='Get' action='mqttset' >");
+  htmlcontent+="<div class='field'><div class='label'>Server IP:</div> \
+    <div class='control'><input class='input' type='text' name='server'>"+ mqttServer +"</div></div>";
+  htmlcontent+="<div class='field'><div class='label'>Port:</div> \
+    <div class='control'><input class='input' type='text' name='port'>"+ mqttPort +"</div></div>";
+  htmlcontent+="<div class='field'><div class='label'>Prefix:</div> \
+    <div class='control'><input class='input' type='text' name='prefix'>"+ mqttPrefix +"</div></div>";
+  htmlcontent+="<div class='field'><div class='label'>User Id:</div> \
+    <div class='control'><input class='input' type='text' name='user'>"+ mqttUser +"</div></div>";
+  htmlcontent+="<div class='field'><div class='label'>Password:</div> \
+    <div class='control'><input class='input' type='password' name='pass'>"+ mqttPass +"</div></div>";
+  htmlcontent +=F("</form>");
+  server.send(200,"text/html",htmlcontent);
+}
+
+/* 
+  Wird aufgerufen wenn die MQTT-Seite gespeichert wird
+*/
+void handleMqttSettings()
+{
+  serial_print_HttpInfo();
+  String qserver = server.arg("server");
+  String qport = server.arg("port");
+  String qprefix = server.arg("prefix");
+  String quser = server.arg("user");
+  String qpass = server.arg("pass");
+  if(qserver.length()>0)
+  {
+    writeMqttConfig(qserver,qport,qprefix,quser,qpass);
+  }
+  else
+  {
+    //Reset Mqtt Config
+    writeMqttConfig();
+  }
+  readMqttConfig();
+  mqttConnect();
+  server.sendHeader("Location", String("/mqtt"), true);
+  server.send(302,"text/plain","");
+}
+/* 
+  Wird aufgerufen wenn die CMDs-Seite abgerufen wird
+*/
+void handleCmds()
+{
+    htmlcontent=getHtmlPrefix();
+    htmlcontent +=  buildCmdPage();
+    htmlcontent += getHtmlSuffix();
+    server.send(200,"text/html",htmlcontent);
+}
+/* 
+  Wird aufgerufen wenn die CMD-Seite aufgerufen wird
+*/
+void handleCmd()
+{
+  String cmd= server.arg("submit");
+  IRcode code = readIrCmd(cmd);
+  handleIrCode(code.Code);
+  server.sendHeader("Location", String("/mqtt"), true);
+  server.send(302,"text/plain","");
+}
+/*
    Diese Webseite wird angezeigt, wenn der ESP im WLAN mit seiner lokalen IP abgerufen wird.
 */
 void handleRoot()
@@ -61,6 +139,9 @@ void handleRoot()
     htmlcontent += "<div class='field'><div class='label'>ESP8266-RcDroid</div> \
         <div class='control'>STA-Mode, IP-Address: " 
         +  String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) + 
+        "</div></div>";
+    htmlcontent += "<div class='field'><div class='label'>Device Name</div> \
+        <div class='control'>" + deviceName +
         "</div></div>";
     htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-danger' href='/deletepass'>delete WiFi-Settings");
     htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
@@ -113,6 +194,7 @@ void handleAPRoot()
   htmlcontent += F("<form method='GET' action='setting' ><div class='field'><div class='label'>SSID:</div> \
     <div class='control'><input class='input' type='text' name='ssid'></div></div> \
     <div class='field'><div class='label'>Password:</div><div class='control'><input class='input' type='password' name='pass'></div> \
+    <div class='field'><div class='label'>Device Name:</div><div class='control'><input class='input' type='text' name='device'></div> \
     </div><div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>");
 
   htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-danger' href='/reset'>Reboot");
@@ -282,9 +364,18 @@ void handleSetting()
   serial_print_HttpInfo();
   String qsid = server.arg("ssid");
   String qpass = server.arg("pass");
+  String qdevice = server.arg("device");
   if (qsid.length() > 0 && qpass.length() > 0)
   {
-    writeConfig(qsid,qpass);
+    if(qdevice.length()>0)
+    {
+      writeConfig(qsid,qpass,qdevice);
+    }
+    else
+    {
+      writeConfig(qsid,qpass);
+    }
+    
 
     htmlcontent = "<html><head><meta http-equiv=\"refresh\" content=\"0; URL=../\"></head><body style='font-family: sans-serif; font-size: 12px'>";
     htmlcontent += "OK";

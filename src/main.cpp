@@ -7,7 +7,11 @@
 #include <IRutils.h>
 #include <ArduinoJson.h>
 #include <Config.h>
+#include <mqttconf.h>
 #include <WebServerImpl.h>
+#include <ircode.h>
+#include <ircodes.h>
+#include <mqttimpl.h>
 
 #define IR_PORT 0
 #define IR_PORT_INVERT false
@@ -88,6 +92,54 @@ void handleIr()
   }
   htmlcontent = "OK";
   server.send(200, "text/plain", htmlcontent);
+}
+
+/*
+  IRCode Handler without HTTP Server
+  is used by CMD-Site and MQTT
+*/
+void handleIrCode(String code)
+{
+
+  pinMode(IR_PORT, OUTPUT);
+
+  if (code.length()>0)
+  {
+    (code + ",0").toCharArray(ir, 1024);
+
+    char *p; //Zeiger im Array
+    unsigned int frequence = strtol(ir, &p, 10);
+    p++; //Komma im String wird übersprungen
+    unsigned int pulses = strtol(p, &p, 10);
+
+    bool burst = true; //wir beginnen mit IR Licht
+
+    unsigned int startTicks;
+    unsigned int halfPeriodTicks = 40000000 / frequence;
+    while (pulses != 0)
+    {
+      RSR_CCOUNT(startTicks);
+      for (unsigned int i = 0 ; i < pulses * 2; i++)
+      {
+        if (IR_PORT_INVERT)
+          digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? LOW : HIGH);
+        else
+          digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? HIGH : LOW);
+        while (get_ccount() < startTicks + i * halfPeriodTicks) {} //Warten
+      }
+      burst = !burst;
+      p++; //Komma im String wird übersprungen
+      pulses = strtol(p, &p, 10);
+    }
+    digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW); //Am Ende IR immer AUS
+
+  }
+  else
+  {
+    Serial.println("Unknown Code Lngth");
+    return;
+  }
+  Serial.println("IrCode send");
 }
 
 IRrecv irReceiver(IR_RECEIVER_PORT);
@@ -249,6 +301,10 @@ void setupAP(void) {
   server.on("/reset", handleReset);
   server.on("/getip", handleGetIp);
   server.on("/receiveir", handleReceiveIr);
+  server.on("/mqtt", handleMqtt);
+  server.on("/mqttset", handleMqttSettings);
+  server.on("/cmds",handleCmds);
+  server.on("/cmd",handleCmd);
 
   server.onNotFound(handleNotFound);
 
@@ -304,10 +360,16 @@ void setup(void) {
       server.on("/out", handleOut);
       server.on("/deletepass", handleDeletePass);
       server.on("/receiveir", handleReceiveIr);
+      server.on("/mqtt", handleMqtt);
+      server.on("/mqttset", handleMqttSettings);
+      server.on("/cmds",handleCmds);
+      server.on("/cmd",handleCmd);
       server.onNotFound(handleNotFound);
 
       server.begin();
       Serial.println("HTTP server started");
+      Serial.println("Start MqttClient");
+      mqttConnect();
       return;
     }
   }
@@ -321,4 +383,5 @@ void setup(void) {
 void loop()
 {
   server.handleClient();
+  mqttClient.loop();
 }
