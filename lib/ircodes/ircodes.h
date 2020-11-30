@@ -181,6 +181,8 @@ IRcode readIrCmd(String cmd)
 String listCmds()
 {
     String retval="";
+    Serial.println("listCmds");
+
 #if filesystem == littlefs
     Dir dir = LittleFS.openDir("/");
 #else
@@ -205,6 +207,7 @@ String listCmds()
 String getCmds()
 {
     String retval="";
+    Serial.println("getCmds");
 #if filesystem == littlefs
     Dir dir = LittleFS.openDir("/");
 #else
@@ -219,7 +222,6 @@ String getCmds()
             retval += ", ";
         }
     }
-   
     return retval;
 }
 
@@ -227,6 +229,7 @@ String getCmds()
 String buildCmdPage()
 {
     String retval="";
+    Serial.println("buildCmdPage");
     retval += F("<form method='GET' action='cmd' >");
     //"</form>");
 #if filesystem == littlefs

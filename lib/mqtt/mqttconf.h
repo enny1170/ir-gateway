@@ -95,14 +95,13 @@ void readMqttConfig()
   const int capacity = JSON_OBJECT_SIZE(MQTT_SIZE);
   StaticJsonDocument<capacity> doc;
 
-  Serial.println("Try to load Config from file");
+  Serial.println("Try to load MQTT-Config from file");
 
 #if filesystem == littlefs
   mqttFile=LittleFS.open(MQTT_FILE_NAME,"r");
 #else
   mqttFile=SPIFFS.open(MQTT_FILE_NAME,"r");
 #endif
-
   DeserializationError err = deserializeJson(doc, mqttFile);
   mqttFile.close();
   if(err)

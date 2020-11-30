@@ -288,6 +288,7 @@ void setupAP(void) {
 
   serial_print_Networks();
 
+  Serial.println("Setup Soft AP...");
   IPAddress apIP(192, 168, 0, 1);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
 
@@ -336,10 +337,14 @@ void setup(void) {
   readConfig();
 
   checkMqttConfig();
+  readMqttConfig();
+  Serial.println(getESPDevName());
   Serial.print("SSID: ");
   Serial.println(ssid);
   Serial.print("PASS: ");
   Serial.println(passwd);
+  Serial.print("MAC: ");
+  Serial.println(WiFi.macAddress());
 
   if (ssid.length() > 1)
   {
@@ -383,6 +388,7 @@ void setup(void) {
 */
 void loop()
 {
-  server.handleClient();
+  Serial.print(".");
+  //server.handleClient();
   //mqttClient.loop();
 }

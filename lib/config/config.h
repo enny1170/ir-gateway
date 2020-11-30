@@ -87,7 +87,7 @@ void readConfig()
   const int capacity = JSON_OBJECT_SIZE(CONFIG_SIZE);
   StaticJsonDocument<capacity> doc;
 
-  Serial.println("Try to load Config from file");
+  Serial.println("Try to load WiFi-Config from file");
 
 #if filesystem == littlefs
   configFile=LittleFS.open(CONFIG_FILE_NAME,"r");
