@@ -3,14 +3,22 @@
 
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
-#include <ESP8266WebServer.h>
+#ifdef ESP32
+#include <WiFi.h>
+#include <AsyncTCP.h>
+#elif defined(ESP8266)
+#include <ESP8266WiFi.h>
+#include <ESPAsyncTCP.h>
+#endif
+#include <ESPAsyncWebServer.h>
 #include <Arduino.h>
 #include <mqttconf.h>
 #include <mqttimpl.h>
 #include <ircodes.h>
 
-ESP8266WebServer server(80);
+AsyncWebServer server(80);
 String htmlcontent;
+const char* PARAM_MESSAGE = "message";
 
 //this method implements the IrCode Sending without HTTP
 //is implemented in main.cpp this is only a link for it
@@ -18,6 +26,10 @@ String htmlcontent;
 extern void handleIrCode(String code);
 
 void serial_print_HttpInfo();
+
+void notFound(AsyncWebServerRequest *request) {
+    request->send(404, "text/plain", "Not found");
+}
 
 /*
     Returns HTML-Prefix for each Page
@@ -400,6 +412,120 @@ void handleSetting()
   }
 
 }
+
+
+/*
+*
+*
+*
+*  Configure HTTP-Server functionality
+*
+*
+*
+*/
+
+void configureWebServer()
+{
+  // *******************************************************************************************************
+  // Handle root
+  // *******************************************************************************************************
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("text/html");
+    IPAddress ip = WiFi.localIP();
+    response->print(getHtmlPrefix);
+    if (WiFi.getMode == WIFI_STA)
+    {
+      response->print("<div class='field'><div class='label'>ESP8266-RcDroid</div> \
+        <div class='control'>STA-Mode, IP-Address: " +
+                      String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) +
+                      "</div></div>");
+      response.print("<div class='field'><div class='label'>Device Name</div> \
+        <div class='control'>" +
+                     deviceName +
+                     "</div></div>");
+      response.print(F("<div class='field'><div class='buttons'><a class='button is-danger' href='/deletepass'>delete WiFi-Settings"));
+      response.print(F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
+    }
+    else
+    {
+      response.print("<div class='field'><div class='label'>ESP8266-RcDroid</div> \
+                  <div class='control'>AP-Mode, IP-Address: " +
+                     String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) +
+                     "</div></div>");
+      int n = WiFi.scanNetworks();
+      if (n > 0)
+      {
+        response->print("<ol>");
+        for (int i = 0; i < n; ++i)
+        {
+          // Print SSID and RSSI for each network found
+          response->print("<li>");
+          if (WiFi.SSID(i) == WiFi.SSID())
+            response->printf("<b>%s (%i) %s /<b>", WiFi.SSID(i), WiFi.RSSI(i), (WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+          response->print("</li>");
+        }
+        response->print("</ol>");
+      }
+      else
+      {
+        response->print("No Networks found.");
+      }
+      response->print(F("<form method='GET' action='setting' ><div class='field'><div class='label'>SSID:</div> \
+    <div class='control'><input class='input' type='text' name='ssid'></div></div> \
+    <div class='field'><div class='label'>Password:</div><div class='control'><input class='input' type='password' name='pass'></div> \
+    <div class='field'><div class='label'>Device Name:</div><div class='control'><input class='input' type='text' name='device'></div> \
+    </div><div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>"));
+
+      response->print(F("<div class='field'><div class='buttons'><a class='button is-danger' href='/reset'>Reboot"));
+      if (WiFi.status() == WL_CONNECTED)
+      {
+        response->print(" and deactivate AP");
+      }
+      response->print(F("</a><a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
+    }
+
+    response.print(getHtmlSuffix());
+
+    //request->send(200, "text/plain", "Hello, world");
+    request->send(response);
+  });
+
+  // Send a GET request to <IP>/get?message=<message>
+  server.on("/get", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String message;
+    if (request->hasParam(PARAM_MESSAGE))
+    {
+      message = request->getParam(PARAM_MESSAGE)->value();
+    }
+    else
+    {
+      message = "No message sent";
+    }
+    request->send(200, "text/plain", "Hello, GET: " + message);
+  });
+
+  // Send a POST request to <IP>/post with a form field message set to <message>
+  server.on("/post", HTTP_POST, [](AsyncWebServerRequest *request) {
+    String message;
+    if (request->hasParam(PARAM_MESSAGE, true))
+    {
+      message = request->getParam(PARAM_MESSAGE, true)->value();
+    }
+    else
+    {
+      message = "No message sent";
+    }
+    request->send(200, "text/plain", "Hello, POST: " + message);
+  });
+
+  server.onNotFound(notFound);
+
+  server.begin();
+
+}
+
+
+
 
 
 #endif
