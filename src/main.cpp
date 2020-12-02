@@ -55,51 +55,51 @@ static inline uint32_t get_ccount()
    z.B.:
    http://ip.for.your.device/ir?code=38000,342,171,21,21,21,21,21,21,21,64,21,21,21,21,21,64,21,21,21,21,21,21,21,64,21,64,21,21,21,64,21,21,21,21,21,21,21,64,21,64,21,21,21,21,21,64,21,64,21,64,21,64,21,21,21,21,21,64,21,64,21,21,21,21,21,21,21,1
 */
-void handleIr()
-{
-  serial_print_HttpInfo();
+// void handleIr()
+// {
+//   serial_print_HttpInfo();
 
-  pinMode(IR_PORT, OUTPUT);
+//   pinMode(IR_PORT, OUTPUT);
 
-  if (server.argName(0).equals("code"))
-  {
-    (server.arg(0) + ",0").toCharArray(ir, 1024);
+//   if (server.argName(0).equals("code"))
+//   {
+//     (server.arg(0) + ",0").toCharArray(ir, 1024);
 
-    char *p; //Zeiger im Array
-    unsigned int frequence = strtol(ir, &p, 10);
-    p++; //Komma im String wird übersprungen
-    unsigned int pulses = strtol(p, &p, 10);
+//     char *p; //Zeiger im Array
+//     unsigned int frequence = strtol(ir, &p, 10);
+//     p++; //Komma im String wird übersprungen
+//     unsigned int pulses = strtol(p, &p, 10);
 
-    bool burst = true; //wir beginnen mit IR Licht
+//     bool burst = true; //wir beginnen mit IR Licht
 
-    unsigned int startTicks;
-    unsigned int halfPeriodTicks = 40000000 / frequence;
-    while (pulses != 0)
-    {
-      RSR_CCOUNT(startTicks);
-      for (unsigned int i = 0 ; i < pulses * 2; i++)
-      {
-        if (IR_PORT_INVERT)
-          digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? LOW : HIGH);
-        else
-          digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? HIGH : LOW);
-        while (get_ccount() < startTicks + i * halfPeriodTicks) {} //Warten
-      }
-      burst = !burst;
-      p++; //Komma im String wird übersprungen
-      pulses = strtol(p, &p, 10);
-    }
-    digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW); //Am Ende IR immer AUS
+//     unsigned int startTicks;
+//     unsigned int halfPeriodTicks = 40000000 / frequence;
+//     while (pulses != 0)
+//     {
+//       RSR_CCOUNT(startTicks);
+//       for (unsigned int i = 0 ; i < pulses * 2; i++)
+//       {
+//         if (IR_PORT_INVERT)
+//           digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? LOW : HIGH);
+//         else
+//           digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? HIGH : LOW);
+//         while (get_ccount() < startTicks + i * halfPeriodTicks) {} //Warten
+//       }
+//       burst = !burst;
+//       p++; //Komma im String wird übersprungen
+//       pulses = strtol(p, &p, 10);
+//     }
+//     digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW); //Am Ende IR immer AUS
 
-  }
-  else
-  {
-    handleNotFound();
-    return;
-  }
-  htmlcontent = "OK";
-  server.send(200, "text/plain", htmlcontent);
-}
+//   }
+//   else
+//   {
+//     handleNotFound();
+//     return;
+//   }
+//   htmlcontent = "OK";
+//   server.send(200, "text/plain", htmlcontent);
+// }
 
 /*
   IRCode Handler without HTTP Server
@@ -143,7 +143,7 @@ void handleIrCode(String code)
   }
   else
   {
-    Serial.println("Unknown Code Lngth");
+    Serial.println("Unknown Code Length");
     return;
   }
   Serial.println("IrCode send");
@@ -157,7 +157,7 @@ decode_results irDecoded;
   wartet eine Zeit ab, bis am Receiver ein IR Signal decodiert wurde
   blockiert den ESP
 */
-void handleReceiveIr()
+String handleReceiveIr()
 {
 
   irReceiver.enableIRIn();  // Start the receiver
@@ -203,33 +203,33 @@ void handleReceiveIr()
       }
       irData += "\"\n";
       irData += "}";
-      // create HTML
-      htmlcontent = getHtmlPrefix();
-      htmlcontent += "<div class='field'><div class='control'>";
-      htmlcontent += irData;
-      htmlcontent += "</div></div>";
-      htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
-      htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
-      htmlcontent += getHtmlSuffix();
+      // // create HTML
+      // htmlcontent = getHtmlPrefix();
+      // htmlcontent += "<div class='field'><div class='control'>";
+      // htmlcontent += irData;
+      // htmlcontent += "</div></div>";
+      // htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
+      // htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
+      // htmlcontent += getHtmlSuffix();
 
       Serial.println(irData);
 
-      server.send(200, "application/json", htmlcontent);
+      //server.send(200, "application/json", htmlcontent);
 
       irReceiver.resume();  // Receive the next value
       irReceiver.disableIRIn();  // Stopps the receiver
 
-      return;
+      return irData;
     }
     delay(100);
   };
-  htmlcontent = getHtmlPrefix();
-  htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
-  htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
-  htmlcontent += getHtmlSuffix();
+  // htmlcontent = getHtmlPrefix();
+  // htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
+  // htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
+  // htmlcontent += getHtmlSuffix();
 
-  server.send(408, "text/plain", htmlcontent);
-
+  // server.send(408, "text/plain", htmlcontent);
+  return irData;
 }
 
 
@@ -301,22 +301,7 @@ void setupAP(void) {
 
   WiFi.softAP(ssidAP, passwordAP, 3, false);
   delay(100);
-
-  server.on("/", handleAPRoot);
-  server.on("/setting", handleSetting);
-  server.on("/ir", handleIr);
-  server.on("/out", handleOut);
-  server.on("/reset", handleReset);
-  server.on("/getip", handleGetIp);
-  server.on("/receiveir", handleReceiveIr);
-  server.on("/mqtt", handleMqtt);
-  server.on("/mqttset", handleMqttSettings);
-  server.on("/cmds",handleCmds);
-  server.on("/cmd",handleCmd);
-
-  server.onNotFound(handleNotFound);
-
-  server.begin();
+  configureWebServer();
   digitalWrite(LED_BUILTIN,LOW);
   Serial.println("HTTP server started");
 }
@@ -367,19 +352,7 @@ void setup(void) {
       Serial.println(ssid);
       Serial.print("IP address: ");
       Serial.println(WiFi.localIP());
-
-      server.on("/", handleRoot);
-      server.on("/ir", handleIr);
-      server.on("/out", handleOut);
-      server.on("/deletepass", handleDeletePass);
-      server.on("/receiveir", handleReceiveIr);
-      server.on("/mqtt", handleMqtt);
-      server.on("/mqttset", handleMqttSettings);
-      server.on("/cmds",handleCmds);
-      server.on("/cmd",handleCmd);
-      server.onNotFound(handleNotFound);
-
-      server.begin();
+      configureWebServer();
       Serial.println("HTTP server started");
       Serial.println("Start MqttClient");
       //mqttConnect();

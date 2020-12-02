@@ -3,12 +3,12 @@
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <PubSubClient.h>
+
 #include <mqttconf.h>
 #include <ircodes.h>
 
 WiFiClient wifiClient;
-PubSubClient mqttClient(wifiClient);
+
 
 extern void handleIrCode(String code);
 

@@ -24,12 +24,8 @@ const char* PARAM_MESSAGE = "message";
 //is implemented in main.cpp this is only a link for it
 //should be moved later
 extern void handleIrCode(String code);
-
+extern String handleReceiveIr();
 void serial_print_HttpInfo();
-
-void notFound(AsyncWebServerRequest *request) {
-    request->send(404, "text/plain", "Not found");
-}
 
 /*
     Returns HTML-Prefix for each Page
@@ -74,268 +70,40 @@ String getHtmlSuffix()
 }
 
 /*
-  Wird aufgerufen wnn die MQTT-Seite angefordert wird
-*/
-void handleMqtt()
-{
-  readMqttConfig();
-  htmlcontent=getHtmlPrefix();
-  htmlcontent+=F("<form method='Get' action='mqttset' >");
-  htmlcontent+="<div class='field'><div class='label'>Server IP:</div> \
-    <div class='control'><input class='input' type='text' name='server'>"+ mqttServer +"</div></div>";
-  htmlcontent+="<div class='field'><div class='label'>Port:</div> \
-    <div class='control'><input class='input' type='text' name='port'>"+ mqttPort +"</div></div>";
-  htmlcontent+="<div class='field'><div class='label'>Prefix:</div> \
-    <div class='control'><input class='input' type='text' name='prefix'>"+ mqttPrefix +"</div></div>";
-  htmlcontent+="<div class='field'><div class='label'>User Id:</div> \
-    <div class='control'><input class='input' type='text' name='user'>"+ mqttUser +"</div></div>";
-  htmlcontent+="<div class='field'><div class='label'>Password:</div> \
-    <div class='control'><input class='input' type='password' name='pass'>"+ mqttPass +"</div></div>";
-  htmlcontent +=F("</form>");
-  server.send(200,"text/html",htmlcontent);
-}
-
-/* 
-  Wird aufgerufen wenn die MQTT-Seite gespeichert wird
-*/
-void handleMqttSettings()
-{
-  serial_print_HttpInfo();
-  String qserver = server.arg("server");
-  String qport = server.arg("port");
-  String qprefix = server.arg("prefix");
-  String quser = server.arg("user");
-  String qpass = server.arg("pass");
-  if(qserver.length()>0)
-  {
-    writeMqttConfig(qserver,qport,qprefix,quser,qpass);
-  }
-  else
-  {
-    //Reset Mqtt Config
-    writeMqttConfig();
-  }
-  readMqttConfig();
-  mqttConnect();
-  server.sendHeader("Location", String("/mqtt"), true);
-  server.send(302,"text/plain","");
-}
-/* 
-  Wird aufgerufen wenn die CMDs-Seite abgerufen wird
-*/
-void handleCmds()
-{
-    htmlcontent=getHtmlPrefix();
-    htmlcontent +=  buildCmdPage();
-    htmlcontent += getHtmlSuffix();
-    server.send(200,"text/html",htmlcontent);
-}
-/* 
-  Wird aufgerufen wenn die CMD-Seite aufgerufen wird
-*/
-void handleCmd()
-{
-  String cmd= server.arg("submit");
-  IRcode code = readIrCmd(cmd);
-  handleIrCode(code.Code);
-  server.sendHeader("Location", String("/mqtt"), true);
-  server.send(302,"text/plain","");
-}
-/*
-   Diese Webseite wird angezeigt, wenn der ESP im WLAN mit seiner lokalen IP abgerufen wird.
-*/
-void handleRoot()
-{
-    IPAddress ip = WiFi.localIP();
-    htmlcontent=getHtmlPrefix();
-    htmlcontent += "<div class='field'><div class='label'>ESP8266-RcDroid</div> \
-        <div class='control'>STA-Mode, IP-Address: " 
-        +  String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) + 
-        "</div></div>";
-    htmlcontent += "<div class='field'><div class='label'>Device Name</div> \
-        <div class='control'>" + deviceName +
-        "</div></div>";
-    htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-danger' href='/deletepass'>delete WiFi-Settings");
-    htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
-    htmlcontent += getHtmlSuffix();
-    server.send(200, "text/html", htmlcontent);
-}
-
-/*
-   Diese Webseite wird angezeigt, wenn der ESP im AP-Modus mit seiner IP 192.168.0.1 abgerufen wird.
-   Hier kann man dann die SSID und das Password des WLAN eingeben und den ESP neu starten.
-*/
-void handleAPRoot()
-{
-
-  IPAddress ip = WiFi.softAPIP();
-  htmlcontent = getHtmlPrefix();
-  htmlcontent += "<div class='field'><div class='label'>ESP8266-RcDroid</div> \
-                  <div class='control'>AP-Mode, IP-Address: " 
-                  +  String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) + 
-                  "</div></div>";
-
-  int n = WiFi.scanNetworks();
-  if (n > 0)
-  {
-    htmlcontent += "<ol>";
-    for (int i = 0; i < n; ++i)
-    {
-      // Print SSID and RSSI for each network found
-      htmlcontent += "<li>";
-      if (WiFi.SSID(i) == WiFi.SSID())
-        htmlcontent += "<b>";
-      htmlcontent += WiFi.SSID(i);
-      htmlcontent += " (";
-      htmlcontent += WiFi.RSSI(i);
-      htmlcontent += ")";
-      htmlcontent += (WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*";
-      if (WiFi.SSID(i) == WiFi.SSID())
-      {
-        IPAddress ip = WiFi.localIP();
-        htmlcontent += "</b>  connected mit local IP " + String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
-      }
-      htmlcontent += "</li>";
-    }
-    htmlcontent += "</ol>";
-  }
-  else
-  {
-    htmlcontent += "No Networks found.";
-  }
-  htmlcontent += F("<form method='GET' action='setting' ><div class='field'><div class='label'>SSID:</div> \
-    <div class='control'><input class='input' type='text' name='ssid'></div></div> \
-    <div class='field'><div class='label'>Password:</div><div class='control'><input class='input' type='password' name='pass'></div> \
-    <div class='field'><div class='label'>Device Name:</div><div class='control'><input class='input' type='text' name='device'></div> \
-    </div><div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>");
-
-  htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-danger' href='/reset'>Reboot");
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    htmlcontent += " and deactivate AP";
-  }
-  htmlcontent += F("</a><a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
-  
-  htmlcontent += getHtmlSuffix();
-  server.send(200,"text/html",htmlcontent);
-}
-
-/*
-   diese Funktion löscht die Zugangsdaten aus dem EEPROM
-*/
-void handleDeletePass()
-{
-  htmlcontent = "<!DOCTYPE HTML>\r\n<html>";
-  htmlcontent += "<p>Clearing the Config</p></html>";
-  server.send(200, "text/html", htmlcontent);
-  Serial.println("clearing config");
-  writeConfig("","");
-  ESP.restart();
-}
-
-/*
    Diese Webseite wird angezeigt, wenn eine unbekannte URL abgerufen wird.
 */
-void handleNotFound() {
-  htmlcontent = "File Not Found\n\n";
-  htmlcontent += "URI: ";
-  htmlcontent += server.uri();
-  htmlcontent += "\nMethod: ";
-  htmlcontent += (server.method() == HTTP_GET) ? "GET" : "POST";
-  htmlcontent += "\nArguments: ";
-  htmlcontent += server.args();
-  htmlcontent += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    htmlcontent += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+void notFound(AsyncWebServerRequest *request) {
+  AsyncResponseStream *response=request->beginResponseStream("text/plain");
+  response->print("File Not Found\n\n");
+  response->printf("URI: %s\n",request->url().c_str());
+  response->printf("Method: %s\n",request->methodToString());
+  response->printf("Arguments: %i\n",request->args());
+  for (size_t i = 0; i < request->args(); i++)
+  {
+    response->printf(" %s: %s\n",request->argName(i).c_str(),request->arg(i).c_str());
   }
-  server.send(404, "text/plain", htmlcontent);
-}
-
-/*
-   Gibt den Interger-Wert einers Argumentes zurück.
-   oder -1. falls das Argument nicht existiert
-*/
-int getArgValue(String name)
-{
-  for (uint8_t i = 0; i < server.args(); i++)
-    if (server.argName(i) == name)
-      return server.arg(i).toInt();
-  return -1;
+    response->setCode(404);
+    request->send(response);
 }
 
 /*
    Zeigt Informationen zur HTTP-Anfrage im Serial-Monitor an
 */
-void serial_print_HttpInfo()
+void serial_print_HttpInfo(AsyncWebServerRequest *request)
 {
   String message = "\n\n";
   message += "Time: " + String(millis(), DEC) + "\n\n";
   message += "URI: ";
-  message += server.uri();
+  message += request->url();
   message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
+  message += request->methodToString();
   message += "\nArguments: ";
-  message += server.args();
+  message += request->args();
   message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+  for (uint8_t i = 0; i < request->args(); i++) {
+    message += " " + request->argName(i) + ": " + request->arg(i) + "\n";
   }
   Serial.println(message);
-}
-/**
-   Schaltete einen beliebigen GPIO Pin.
-   z.B.: http://ip.of.your.device/out?port=0&value=1     //schaltet GPIO0 an
-         http://ip.of.your.device/out?port=5&value=t     //wechselt den Zustand von GPIO5
-*/
-void handleOut()
-{
-  serial_print_HttpInfo();
-
-  if (server.arg("port").length() == 0
-      || server.arg("value").length() == 0)
-  {
-    handleNotFound();
-    return;
-  }
-
-  int port = getArgValue("port");
-  Serial.print("Port ");
-  Serial.println(port);
-
-  if (port < 0 || port > 15)
-  {
-    Serial.println("Port out of range. Abort!");
-    htmlcontent = "Port out of range.";
-    server.send(400, "text/plain", htmlcontent);
-    return;
-  }
-
-  Serial.print("Value ");
-
-  if (server.arg("value") == "t")
-  {
-    Serial.println("t (Toggle)");
-    if (port != -1)
-    {
-      pinMode(port, OUTPUT);
-      digitalWrite(port, !digitalRead(port));
-    }
-  }
-  else
-  {
-    int value = getArgValue("value");
-    Serial.println(value);
-
-    if (port != -1 && value != -1)
-    {
-      pinMode(port, OUTPUT);
-      digitalWrite(port, value == 0 ? LOW : HIGH);
-    }
-  }
-
-  htmlcontent = "OK";
-  server.send(200, "text/plain", htmlcontent);
-
 }
 
 /*
@@ -349,70 +117,6 @@ void handleReset()
   Serial.println("ESP wird neu gestartet!");
   ESP.restart();
 }
-
-/*
-   gibt die IP als Klartext zurück (nur im AP- und AP_STA-Modus)
-   wird von RCoid abgefragt um festzustellen, ob der ESP mit dem WLAN verbunden ist
-   wird von RCoid automatisch in der App eingetragen
-*/
-void handleGetIp()
-{
-  IPAddress ip = WiFi.localIP();
-  htmlcontent = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
-  server.send(200, "text/plain", htmlcontent);
-  Serial.println("Get IP = " + htmlcontent);
-}
-
-
-
-/*
-   speicher die SSID und das Password in den EEPROM
-   und versucht sich anschließend im WLAN einzuloggen.
-
-   Wenn das gelingt wird RCoid die IP abrufen und den ESP neu startet
-*/
-void handleSetting()
-{
-  serial_print_HttpInfo();
-  String qsid = server.arg("ssid");
-  String qpass = server.arg("pass");
-  String qdevice = server.arg("device");
-  if (qsid.length() > 0 && qpass.length() > 0)
-  {
-    if(qdevice.length()>0)
-    {
-      writeConfig(qsid,qpass,qdevice);
-    }
-    else
-    {
-      writeConfig(qsid,qpass);
-    }
-    
-
-    htmlcontent = "<html><head><meta http-equiv=\"refresh\" content=\"0; URL=../\"></head><body style='font-family: sans-serif; font-size: 12px'>";
-    htmlcontent += "OK";
-    htmlcontent += "</body></html>";
-    server.send(200, "text/html", htmlcontent);
-
-    Serial.println("AP_STA-Modus wird aktiviert");
-
-    ESP.restart();
-
-    // WiFi.mode(WIFI_AP_STA);
-    // delay(100);
-
-    // WiFi.begin(qsid.c_str(), qpass.c_str());
-    // Serial.println("Wifi Restarted");
-    // Serial.println(WiFi.status());
-    // Serial.println(WiFi.localIP());
-  }
-  else
-  {
-    handleNotFound();
-  }
-
-}
-
 
 /*
 *
@@ -432,23 +136,23 @@ void configureWebServer()
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
     IPAddress ip = WiFi.localIP();
-    response->print(getHtmlPrefix);
-    if (WiFi.getMode == WIFI_STA)
+    response->print(getHtmlPrefix());
+    if (WiFi.getMode() == WIFI_STA)
     {
       response->print("<div class='field'><div class='label'>ESP8266-RcDroid</div> \
         <div class='control'>STA-Mode, IP-Address: " +
                       String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) +
                       "</div></div>");
-      response.print("<div class='field'><div class='label'>Device Name</div> \
+      response->print("<div class='field'><div class='label'>Device Name</div> \
         <div class='control'>" +
                      deviceName +
                      "</div></div>");
-      response.print(F("<div class='field'><div class='buttons'><a class='button is-danger' href='/deletepass'>delete WiFi-Settings"));
-      response.print(F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><a class='button is-danger' href='/deletepass'>delete WiFi-Settings"));
+      response->print(F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
     }
     else
     {
-      response.print("<div class='field'><div class='label'>ESP8266-RcDroid</div> \
+      response->print("<div class='field'><div class='label'>ESP8266-RcDroid</div> \
                   <div class='control'>AP-Mode, IP-Address: " +
                      String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) +
                      "</div></div>");
@@ -461,7 +165,7 @@ void configureWebServer()
           // Print SSID and RSSI for each network found
           response->print("<li>");
           if (WiFi.SSID(i) == WiFi.SSID())
-            response->printf("<b>%s (%i) %s /<b>", WiFi.SSID(i), WiFi.RSSI(i), (WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+            response->printf("<b>%s (%i) %s /<b>", WiFi.SSID(i).c_str(), WiFi.RSSI(i), "*");//(WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
           response->print("</li>");
         }
         response->print("</ol>");
@@ -484,39 +188,223 @@ void configureWebServer()
       response->print(F("</a><a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
     }
 
-    response.print(getHtmlSuffix());
+    response->print(getHtmlSuffix());
 
     //request->send(200, "text/plain", "Hello, world");
     request->send(response);
   });
 
-  // Send a GET request to <IP>/get?message=<message>
-  server.on("/get", HTTP_GET, [](AsyncWebServerRequest *request) {
+/*****************************************************************************************************
+ * Handle /ir?code=<message>
+ * ***************************************************************************************************/
+
+  // Send a GET request to <IP>/ir?code=<message>
+  server.on("/ir", HTTP_GET, [](AsyncWebServerRequest *request) {
     String message;
-    if (request->hasParam(PARAM_MESSAGE))
+    if (request->hasParam("code"))
     {
-      message = request->getParam(PARAM_MESSAGE)->value();
+      message = request->getParam("code")->value();
+      handleIrCode(message);
+      message+=" - OK";
     }
     else
     {
-      message = "No message sent";
+      message = "Code not send";
     }
-    request->send(200, "text/plain", "Hello, GET: " + message);
+    request->send(200, "text/plain", "IrResult: " + message);
   });
 
-  // Send a POST request to <IP>/post with a form field message set to <message>
-  server.on("/post", HTTP_POST, [](AsyncWebServerRequest *request) {
-    String message;
-    if (request->hasParam(PARAM_MESSAGE, true))
+/*****************************************************************************************************
+ * Handle /setting?code=<message>
+ * ***************************************************************************************************/
+
+  // Send a GET request to <IP>/ir?code=<message>
+  server.on("/setting", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String qsid;
+    String qpass;
+    String qdevice;
+    if (request->hasParam("ssid") && request->hasParam("pass") && request->hasParam("device"))
     {
-      message = request->getParam(PARAM_MESSAGE, true)->value();
+      qsid = request->getParam("ssid")->value();
+      qpass = request->getParam("pass")->value();
+      qdevice = request->getParam("device")->value();
+      if (qsid.length() > 0 && qpass.length() > 0)
+      {
+        if (qdevice.length() > 0)
+        {
+          writeConfig(qsid, qpass, qdevice);
+        }
+        else
+        {
+          writeConfig(qsid, qpass);
+        }
+
+        htmlcontent = "<html><head><meta http-equiv=\"refresh\" content=\"0; URL=../\"></head><body style='font-family: sans-serif; font-size: 12px'>";
+        htmlcontent += "OK";
+        htmlcontent += "</body></html>";
+        request->send(200, "text/html", htmlcontent);
+
+        Serial.println("AP_STA-Modus wird aktiviert");
+
+        ESP.restart();
+      }
+      else
+      {
+        request->send(404, "text/plain", "Not found");
+      }
+    }
+  });
+
+/*****************************************************************************************************
+ * Handle /reset
+ * ***************************************************************************************************/
+
+  // Send a GET request to <IP>/ir?code=<message>
+  server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain","Reboot ESP");
+    ESP.restart();
+  });
+
+/*****************************************************************************************************
+ * Handle /getip
+ * ***************************************************************************************************/
+/*
+   gibt die IP als Klartext zurück (nur im AP- und AP_STA-Modus)
+   wird von RCoid abgefragt um festzustellen, ob der ESP mit dem WLAN verbunden ist
+   wird von RCoid automatisch in der App eingetragen
+*/
+
+  // Send a GET request to <IP>/ir?code=<message>
+  server.on("/getip", HTTP_GET, [](AsyncWebServerRequest *request) {
+  IPAddress ip = WiFi.localIP();
+  htmlcontent = String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]);
+  request->send(200, "text/plain", htmlcontent);
+  Serial.println("Get IP = " + htmlcontent);
+  });
+
+/*****************************************************************************************************
+ * Handle /receiveir
+ * ***************************************************************************************************/
+
+  server.on("/receiveir", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String result = handleReceiveIr();
+    if (result.length() > 0)
+    {
+      htmlcontent = getHtmlPrefix();
+      htmlcontent += "<div class='field'><div class='control'>";
+      htmlcontent += result;
+      htmlcontent += "</div></div>";
+      htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
+      htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
+      htmlcontent += getHtmlSuffix();
+      request->send(200, "application/json", htmlcontent);
     }
     else
     {
-      message = "No message sent";
+      htmlcontent = getHtmlPrefix();
+      htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
+      htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
+      htmlcontent += getHtmlSuffix();
+
+      request->send(408, "text/html", htmlcontent);
     }
-    request->send(200, "text/plain", "Hello, POST: " + message);
   });
+
+/*****************************************************************************************************
+ * Handle /mqtt
+ * ***************************************************************************************************/
+
+  server.on("/mqtt", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response=request->beginResponseStream("text/html");
+  readMqttConfig();
+  response->print(getHtmlPrefix());
+  response->print(F("<form method='Get' action='mqttset' >"));
+  response->print("<div class='field'><div class='label'>Server IP:</div> \
+    <div class='control'><input class='input' type='text' name='server'>"+ mqttServer +"</div></div>");
+  response->print("<div class='field'><div class='label'>Port:</div> \
+    <div class='control'><input class='input' type='text' name='port'>"+ mqttPort +"</div></div>");
+  response->print("<div class='field'><div class='label'>Prefix:</div> \
+    <div class='control'><input class='input' type='text' name='prefix'>"+ mqttPrefix +"</div></div>");
+  response->print("<div class='field'><div class='label'>User Id:</div> \
+    <div class='control'><input class='input' type='text' name='user'>"+ mqttUser +"</div></div>");
+  response->print("<div class='field'><div class='label'>Password:</div> \
+    <div class='control'><input class='input' type='password' name='pass'>"+ mqttPass +"</div></div>");
+  response->print(F("</form>"));
+  request->send(response);
+  });
+
+/*****************************************************************************************************
+ * Handle /mqttset?server=192.168.17.1&port=1883&...
+ * ***************************************************************************************************/
+
+  server.on("/mqttset", HTTP_GET, [](AsyncWebServerRequest *request) {
+  String qserver;
+  String qport ;
+  String qprefix ;
+  String quser ;
+  String qpass ;
+  if(request->hasParam("server") && request->hasParam("port"))
+  {
+    qserver=request->getParam("server")->value();
+    qport=request->getParam("port")->value();
+    qprefix=request->getParam("prefix")->value();
+    quser=request->getParam("user")->value();
+    qpass=request->getParam("pass")->value();
+  }
+  if(qserver.length()>0)
+  {
+    writeMqttConfig(qserver,qport,qprefix,quser,qpass);
+  }
+  else
+  {
+    //Reset Mqtt Config
+    writeMqttConfig();
+  }
+  mqttConnect();
+  request->redirect("/mqtt");
+  });
+
+/*****************************************************************************************************
+ * Handle /cmds
+ * ***************************************************************************************************/
+
+  server.on("/cmds", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    response->print(getHtmlPrefix());
+    response->print(buildCmdPage());
+    response->print(getHtmlSuffix());
+    request->send(response);
+  });
+
+/*****************************************************************************************************
+ * Handle /cmd
+ * ***************************************************************************************************/
+
+  server.on("/cmd", HTTP_GET, [](AsyncWebServerRequest *request) {
+  String cmd;
+  if(request->hasParam("submit"))
+  {
+    cmd=request->getParam("submit")->value();
+  }
+  IRcode code = readIrCmd(cmd);
+  handleIrCode(code.Code);
+  request->redirect("/cmds");
+  });
+
+/*****************************************************************************************************
+ * Handle //deletepass
+ * ***************************************************************************************************/
+
+  server.on("/deletepass", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response=request->beginResponseStream("text/html");
+  response->print("<!DOCTYPE HTML>\r\n<html>");
+  response->print("<p>Clearing the Config</p></html>");
+  request->send(response);
+  Serial.println("clearing config");
+  writeConfig("","");
+  ESP.restart();
+  });
+
 
   server.onNotFound(notFound);
 
