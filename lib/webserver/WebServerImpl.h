@@ -1,7 +1,6 @@
 #ifndef WEBSERVERIMPL_H
 #define WEBSERVERIMPL_H
 
-#include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #ifdef ESP32
 #include <WiFi.h>
@@ -360,7 +359,7 @@ void configureWebServer()
     //Reset Mqtt Config
     writeMqttConfig();
   }
-  mqttConnect();
+  setupMqtt();
   request->redirect("/mqtt");
   });
 
@@ -409,7 +408,7 @@ void configureWebServer()
   server.onNotFound(notFound);
 
   server.begin();
-
+  Serial.println("HTTP-Server setup finished");
 }
 
 

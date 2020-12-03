@@ -1,4 +1,3 @@
-#include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <Arduino.h>
 #ifdef ESP32
@@ -250,7 +249,11 @@ void serial_print_Networks()
       Serial.print(i + 1);
       Serial.print(": ");
       Serial.print(WiFi.SSID(i));
+      #ifdef ESP8266
       Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? "" : " (verschlüsselt)");
+      #else
+      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "" : " (verschlüsselt)");
+      #endif
     }
   }
   Serial.println("");
@@ -302,7 +305,9 @@ void setupAP(void) {
   WiFi.softAP(ssidAP, passwordAP, 3, false);
   delay(100);
   configureWebServer();
+  #ifdef ESP8266
   digitalWrite(LED_BUILTIN,LOW);
+  #endif
   Serial.println("HTTP server started");
 }
 
@@ -314,22 +319,23 @@ void setupAP(void) {
 void setup(void) {
 
   pinMode(IR_PORT, OUTPUT);
-  pinMode(LED_BUILTIN,OUTPUT);
   digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW);
+  #ifdef ESP8266
+  pinMode(LED_BUILTIN,OUTPUT);
   digitalWrite(LED_BUILTIN,HIGH);
+#else
+//ESP32 devKit V2 has no onboard LED only Power
+  #endif
   Serial.begin(115200);
   // Serial.println("Init Filesystem");
   
   initFileSystem();
-
-
-  Serial.println("Test File");
   checkConfig();
   // try to load Config
   readConfig();
-
   checkMqttConfig();
   readMqttConfig();
+
   Serial.println(getESPDevName());
   Serial.print("SSID: ");
   Serial.println(ssid);
@@ -342,7 +348,7 @@ void setup(void) {
   {
 
     WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid.c_str(), passwd.c_str());  //Starte WIFI mit den Zugangsdaten aus dem EEPROM
+    WiFi.begin(ssid.c_str(), passwd.c_str());  //Starte WIFI mit den Zugangsdaten aus Config
     Serial.println("");
 
     if (WaitForConnection(10))
@@ -355,7 +361,7 @@ void setup(void) {
       configureWebServer();
       Serial.println("HTTP server started");
       Serial.println("Start MqttClient");
-      //mqttConnect();
+      setupMqtt();
       return;
     }
   }

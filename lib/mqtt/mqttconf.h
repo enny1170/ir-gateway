@@ -4,8 +4,13 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 
+#ifndef ESP32
 #if filesystem==littlefs
     #include <LittleFS.h>
+#else
+    #include <FS.h>
+    #define SPIFFS_USE_MAGIC
+#endif
 #else
     #include <FS.h>
     #define SPIFFS_USE_MAGIC
@@ -27,7 +32,7 @@ String mqttPass="";
 
 void initFileSystem()
 {
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
     Serial.println("Mounting SPIFFS...");
     if (!LittleFS.begin())
     {
@@ -62,7 +67,7 @@ void writeMqttConfig(String server=".",String port="1883",String prefix=getESPDe
   const int capacity = JSON_OBJECT_SIZE(MQTT_SIZE);
   StaticJsonDocument<capacity> doc;
 
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
   mqttFile=LittleFS.open(MQTT_FILE_NAME,"w");
 #else
   mqttFile=SPIFFS.open(MQTT_FILE_NAME,"w");
@@ -97,7 +102,7 @@ void readMqttConfig()
 
   Serial.println("Try to load MQTT-Config from file");
 
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
   mqttFile=LittleFS.open(MQTT_FILE_NAME,"r");
 #else
   mqttFile=SPIFFS.open(MQTT_FILE_NAME,"r");
@@ -123,7 +128,7 @@ void checkMqttConfig()
 {
   //check Config File is exists, or create one
 
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
   if(!LittleFS.exists(MQTT_FILE_NAME))
   {
     Serial.println("Try to create Config File");

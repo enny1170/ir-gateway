@@ -5,8 +5,13 @@
 #include <ArduinoJson.h>
 #include <ircode.h>
 
+#ifndef ESP32
 #if filesystem==littlefs
     #include <LittleFS.h>
+#else
+    #include <FS.h>
+    #define SPIFFS_USE_MAGIC
+#endif
 #else
     #include <FS.h>
     #define SPIFFS_USE_MAGIC
@@ -21,7 +26,7 @@ File irCodeFile;
 
 void initFileSystem()
 {
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
     Serial.println("Mounting SPIFFS...");
     if (!LittleFS.begin())
     {
@@ -57,7 +62,7 @@ void writeIrCmd(String cmd,String description,String code)
   const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
   StaticJsonDocument<capacity> doc;
 
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
   irCodeFile=LittleFS.open("/"+cmd+".cmd","w");
 #else
   irCodeFile=SPIFFS.open("/"+cmd+"cmd","w");
@@ -79,7 +84,7 @@ void writeIrCmd(IRcode ircode)
   const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
   StaticJsonDocument<capacity> doc;
 
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
   irCodeFile=LittleFS.open("/"+ircode.Cmd+".cmd","w");
 #else
   irCodeFile=SPIFFS.open("/"+ircode.Cmd+"cmd","w");
@@ -105,7 +110,7 @@ IRcode readIrCmd(String cmd)
     if(!cmd.endsWith(".cmd"))
     {
         // Commandname given
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
     if(LittleFS.exists("/"+cmd+".cmd"))
     {
         irCodeFile=LittleFS.open("/"+cmd+".cmd","r");
@@ -118,7 +123,7 @@ IRcode readIrCmd(String cmd)
     }
     
 #else
-    if(SPIFFS.exists("/"+cmd+".cmd","r"))
+    if(SPIFFS.exists(String("/"+cmd+".cmd").c_str()))
     {
         irCodeFile=SPIFFS.open("/"+cmd+".cmd","r");
     }
@@ -133,7 +138,7 @@ IRcode readIrCmd(String cmd)
     }
     else
     {
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
     if(LittleFS.exists(cmd))
     {
         irCodeFile=LittleFS.open(cmd,"r");
@@ -146,7 +151,7 @@ IRcode readIrCmd(String cmd)
     }
     
 #else
-    if(SPIFFS.exists(cmd,"r"))
+    if(SPIFFS.exists(cmd))
     {
         irCodeFile=SPIFFS.open(cmd,"r");
     }
@@ -183,11 +188,8 @@ String listCmds()
     String retval="";
     Serial.println("listCmds");
 
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
     Dir dir = LittleFS.openDir("/");
-#else
-    Dir dir = SPIFFS.openDir("/");
-#endif
     while(dir.next())
     {
         if(dir.isFile() && dir.fileName().endsWith(".cmd"))
@@ -199,6 +201,23 @@ String listCmds()
             retval += "\n";
         }
     }
+#else
+    File dir = SPIFFS.open("/");
+    File file=dir.openNextFile();
+    while(file)
+    {
+        String fileName=String(file.name());
+        if(fileName.endsWith(".cmd"))
+        {
+            int pointPos=fileName.indexOf('.');
+            retval += fileName;
+            retval += " - ";
+            retval += fileName.substring(0,pointPos-1);
+            retval += "\n";
+        }
+        file=dir.openNextFile();
+    }
+#endif
    
     return retval;
 
@@ -208,11 +227,8 @@ String getCmds()
 {
     String retval="";
     Serial.println("getCmds");
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
     Dir dir = LittleFS.openDir("/");
-#else
-    Dir dir = SPIFFS.openDir("/");
-#endif
     while(dir.next())
     {
         if(dir.isFile() && dir.fileName().endsWith(".cmd"))
@@ -222,6 +238,21 @@ String getCmds()
             retval += ", ";
         }
     }
+#else
+    File dir = SPIFFS.open("/");
+    File file=dir.openNextFile();
+    while(file)
+    {
+        String fileName=String(file.name());
+        if(fileName.endsWith(".cmd"))
+        {
+            int pointPos=fileName.indexOf('.');
+            retval += fileName.substring(0,pointPos-1);
+            retval += ", ";
+        }
+        file=dir.openNextFile();
+    }
+#endif
     return retval;
 }
 
@@ -232,12 +263,8 @@ String buildCmdPage()
     Serial.println("buildCmdPage");
     retval += F("<form method='GET' action='cmd' >");
     //"</form>");
-#if filesystem == littlefs
+#if defined filesystem && filesystem == littlefs
     Dir dir = LittleFS.openDir("/");
-#else
-    Dir dir = SPIFFS.openDir("/");
-#endif
-
     while(dir.next())
     {
         if(dir.isFile() && dir.fileName().endsWith(".cmd"))
@@ -249,6 +276,24 @@ String buildCmdPage()
         }
     }
     retval +=F("</form>");
+#else
+    File dir = SPIFFS.open("/");
+    File file=dir.openNextFile();
+    while(file)
+    {
+        String fileName=String(file.name());
+        if(fileName.endsWith(".cmd"))
+        {
+            int pointPos=fileName.indexOf('.');
+            retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
+            retval += fileName.substring(0,pointPos-1);
+            retval += F("'/></div>");
+        }
+        file=dir.openNextFile();
+    }
+    retval +=F("</form>");
+#endif
+
     return retval;
 
 }
