@@ -30,7 +30,7 @@ String deviceName=getESPDevName();
 void initFileSystem()
 {
 #ifdef ESP8266
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
     Serial.println("Mounting Flash...");
     if (!LittleFS.begin())
     {
@@ -72,7 +72,7 @@ void writeConfig(String ssid,String passwd,String device=getESPDevName())
   const int capacity = JSON_OBJECT_SIZE(CONFIG_SIZE);
   StaticJsonDocument<capacity> doc;
 
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
   configFile=LittleFS.open(CONFIG_FILE_NAME,"w");
 #else
   configFile=SPIFFS.open(CONFIG_FILE_NAME,"w");
@@ -103,7 +103,7 @@ void readConfig()
 
   Serial.println("Try to load WiFi-Config from file");
 
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
   configFile=LittleFS.open(CONFIG_FILE_NAME,"r");
 #else
   configFile=SPIFFS.open(CONFIG_FILE_NAME,"r");
@@ -128,7 +128,7 @@ void checkConfig()
 {
   //check Config File is exists, or create one
 
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
   if(!LittleFS.exists(CONFIG_FILE_NAME))
   {
     Serial.println("Try to create Config File");

@@ -26,7 +26,7 @@ File irCodeFile;
 
 void initFileSystem()
 {
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
     Serial.println("Mounting SPIFFS...");
     if (!LittleFS.begin())
     {
@@ -62,7 +62,7 @@ void writeIrCmd(String cmd,String description,String code)
   const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
   StaticJsonDocument<capacity> doc;
 
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
   irCodeFile=LittleFS.open("/"+cmd+".cmd","w");
 #else
   irCodeFile=SPIFFS.open("/"+cmd+"cmd","w");
@@ -84,7 +84,7 @@ void writeIrCmd(IRcode ircode)
   const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
   StaticJsonDocument<capacity> doc;
 
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
   irCodeFile=LittleFS.open("/"+ircode.Cmd+".cmd","w");
 #else
   irCodeFile=SPIFFS.open("/"+ircode.Cmd+"cmd","w");
@@ -110,7 +110,7 @@ IRcode readIrCmd(String cmd)
     if(!cmd.endsWith(".cmd"))
     {
         // Commandname given
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
     if(LittleFS.exists("/"+cmd+".cmd"))
     {
         irCodeFile=LittleFS.open("/"+cmd+".cmd","r");
@@ -138,7 +138,7 @@ IRcode readIrCmd(String cmd)
     }
     else
     {
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
     if(LittleFS.exists(cmd))
     {
         irCodeFile=LittleFS.open(cmd,"r");
@@ -188,7 +188,7 @@ String listCmds()
     String retval="";
     Serial.println("listCmds");
 
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
     Dir dir = LittleFS.openDir("/");
     while(dir.next())
     {
@@ -227,7 +227,7 @@ String getCmds()
 {
     String retval="";
     Serial.println("getCmds");
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
     Dir dir = LittleFS.openDir("/");
     while(dir.next())
     {
@@ -263,7 +263,7 @@ String buildCmdPage()
     Serial.println("buildCmdPage");
     retval += F("<form method='GET' action='cmd' >");
     //"</form>");
-#if defined filesystem && filesystem == littlefs
+#if defined ESP8266 && filesystem == littlefs
     Dir dir = LittleFS.openDir("/");
     while(dir.next())
     {
