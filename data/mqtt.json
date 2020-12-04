@@ -1,6 +1,6 @@
 {
-    "mqttServer":".",
-    "mqttPort":"1833",
+    "mqttServer":"192.168.178.41",
+    "mqttPort":"1883",
     "mqttPrefix":"ennytest1",
     "mqttUser":"",
     "mqttPass":""

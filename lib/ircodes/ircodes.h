@@ -197,7 +197,7 @@ String listCmds()
             int pointPos=dir.fileName().indexOf('.');
             retval += dir.fileName();
             retval += " - ";
-            retval += dir.fileName().substring(0,pointPos-1);
+            retval += dir.fileName().substring(1,pointPos);
             retval += "\n";
         }
     }
@@ -212,11 +212,12 @@ String listCmds()
             int pointPos=fileName.indexOf('.');
             retval += fileName;
             retval += " - ";
-            retval += fileName.substring(0,pointPos-1);
+            retval += fileName.substring(1,pointPos);
             retval += "\n";
         }
         file=dir.openNextFile();
     }
+    dir.close();
 #endif
    
     return retval;
@@ -234,7 +235,7 @@ String getCmds()
         if(dir.isFile() && dir.fileName().endsWith(".cmd"))
         {
             int pointPos=dir.fileName().indexOf('.');
-            retval += dir.fileName().substring(0,pointPos-1);
+            retval += dir.fileName().substring(1,pointPos);
             retval += ", ";
         }
     }
@@ -247,11 +248,12 @@ String getCmds()
         if(fileName.endsWith(".cmd"))
         {
             int pointPos=fileName.indexOf('.');
-            retval += fileName.substring(0,pointPos-1);
+            retval += fileName.substring(1,pointPos);
             retval += ", ";
         }
         file=dir.openNextFile();
     }
+    dir.close();
 #endif
     return retval;
 }

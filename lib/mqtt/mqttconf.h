@@ -84,7 +84,7 @@ void writeMqttConfig(String server=".",String port="1883",String prefix=getESPDe
   else
   {
     doc["mqttServer"]=".";
-    doc["mqttPort"]="1833";
+    doc["mqttPort"]="1883";
     doc["mqttPrefix"]=getESPDevName();
     doc["mqttUser"]="";
     doc["mqttPass"]="";

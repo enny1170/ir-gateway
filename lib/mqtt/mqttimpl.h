@@ -52,15 +52,21 @@ void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
 extern void handleIrCode(String code);
 
 void connectToMqtt() {
-  Serial.println("Connecting to MQTT...");
-  mqttClient.connect();
+  if(mqttServer==".")
+  {
+    Serial.println("MQTT is disabled. Do not connect.");
+  }
+  else
+  {
+    Serial.println("Connecting to MQTT...");
+    mqttClient.connect();
+  }
 }
 
 void onMqttConnect(bool sessionPresent)
 {
     Serial.println("Connected to MQTT.");
     IPAddress ip = WiFi.localIP();
-    Serial.println("Connected to MQTT.");
     // Once connected, publish current IP-Address
     mqttClient.publish((mqttPrefix + "/IpAddress").c_str(), 1, true, (String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3])).c_str());
     // publish available IrCmds
@@ -70,26 +76,26 @@ void onMqttConnect(bool sessionPresent)
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-  Serial.println("Disconnected from MQTT.");
-
+  Serial.print("Disconnected from MQTT Code ");
+  Serial.println((int)reason);
   if (WiFi.isConnected()) {
     mqttReconnectTimer.once(2, connectToMqtt);
   }
 }
 
-// void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
-//   Serial.println("Subscribe acknowledged.");
-//   Serial.print("  packetId: ");
-//   Serial.println(packetId);
-//   Serial.print("  qos: ");
-//   Serial.println(qos);
-// }
+void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
+  Serial.println("Subscribe acknowledged.");
+  Serial.print("  packetId: ");
+  Serial.println(packetId);
+  Serial.print("  qos: ");
+  Serial.println(qos);
+}
 
-// void onMqttUnsubscribe(uint16_t packetId) {
-//   Serial.println("Unsubscribe acknowledged.");
-//   Serial.print("  packetId: ");
-//   Serial.println(packetId);
-// }
+void onMqttUnsubscribe(uint16_t packetId) {
+  Serial.println("Unsubscribe acknowledged.");
+  Serial.print("  packetId: ");
+  Serial.println(packetId);
+}
 
 void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
 {
@@ -103,7 +109,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         payloadCmd += (char)payload[i];
     }
     Serial.println();
-    if (topic == (mqttPrefix + "/Cmd").c_str())
+    if (String(topic).equals(mqttPrefix + "/Cmd"))
     {
         Serial.print("Expected Topic '");
         Serial.print((mqttPrefix + "/Cmd").c_str());
@@ -112,15 +118,19 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         if (cmdCode.Description == "empty")
         {
             Serial.printf("'%s' unknown CMD\n", payloadCmd.c_str());
-            mqttClient.publish((mqttPrefix + "/State").c_str(), 1, true, (payloadCmd + " unknown CMD").c_str());
+            mqttClient.publish((mqttPrefix + "/State").c_str(), 1, false, (payloadCmd + " unknown CMD").c_str());
         }
         else
         {
             Serial.printf("Handle IrCode for CMD '%s' Descr: %s\n", cmdCode.Cmd.c_str(), cmdCode.Description.c_str());
             Serial.println(cmdCode.Code);
             handleIrCode(cmdCode.Code);
-            mqttClient.publish((mqttPrefix + "/State").c_str(), 1, true, payloadCmd.c_str());
+            mqttClient.publish((mqttPrefix + "/State").c_str(), 1, false, payloadCmd.c_str());
         }
+    }
+    else
+    {
+        mqttClient.publish((mqttPrefix + "/State").c_str(), 1, false, "Unexpected topic");
     }
 }
 
@@ -142,12 +152,19 @@ void setupMqtt()
 #endif
   mqttClient.onConnect(onMqttConnect);
   mqttClient.onDisconnect(onMqttDisconnect);
-  //mqttClient.onSubscribe(onMqttSubscribe);
-  //mqttClient.onUnsubscribe(onMqttUnsubscribe);
+  mqttClient.onSubscribe(onMqttSubscribe);
+  mqttClient.onUnsubscribe(onMqttUnsubscribe);
   mqttClient.onMessage(onMqttMessage);
-  //mqttClient.onPublish(onMqttPublish);
+  mqttClient.onPublish(onMqttPublish);
+  Serial.println("Setup MQTT-Client...");
+  Serial.print("Server: ");
+  Serial.println(mqttServer);
+  Serial.print("Port: ");
+  Serial.println(mqttPort);
+  Serial.print("Prefix: ");
+  Serial.println(mqttPrefix);
   mqttClient.setServer(mqttServer.c_str(), mqttPort.toInt());
-  mqttClient.setClientId(getESPDevName().c_str());
+  mqttClient.setClientId(mqttPrefix.c_str());
   connectToMqtt();
 }
 

@@ -147,6 +147,7 @@ void configureWebServer()
                      deviceName +
                      "</div></div>");
       response->print(F("<div class='field'><div class='buttons'><a class='button is-danger' href='/deletepass'>delete WiFi-Settings"));
+      response->print(F("<a class='button is-warning' href='/reset'>Reboot Device</a></div></div>"));
       response->print(F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
     }
     else
@@ -163,8 +164,11 @@ void configureWebServer()
         {
           // Print SSID and RSSI for each network found
           response->print("<li>");
-          if (WiFi.SSID(i) == WiFi.SSID())
-            response->printf("<b>%s (%i) %s /<b>", WiFi.SSID(i).c_str(), WiFi.RSSI(i), "*");//(WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+          #ifdef ESP8266
+            response->printf("<b>%s (%i) %s %s</b>", WiFi.SSID(i).c_str(), WiFi.RSSI(i),(WiFi.encryptionType(i) == ENC_TYPE_NONE) ? "(open)" : "(closed)",(WiFi.SSID(i) == WiFi.SSID()) ? "*" :" ");
+          #else
+            response->printf("<b>%s (%i) %s %s</b>", WiFi.SSID(i).c_str(), WiFi.RSSI(i),(WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "(open)" : "(closed)",(WiFi.SSID(i) == WiFi.SSID()) ? "*":" ");
+          #endif
           response->print("</li>");
         }
         response->print("</ol>");
@@ -319,16 +323,16 @@ void configureWebServer()
   response->print(getHtmlPrefix());
   response->print(F("<form method='Get' action='mqttset' >"));
   response->print("<div class='field'><div class='label'>Server IP:</div> \
-    <div class='control'><input class='input' type='text' name='server'>"+ mqttServer +"</div></div>");
+    <div class='control'><input class='input' type='text' name='server' value='"+ mqttServer +"'></div></div>");
   response->print("<div class='field'><div class='label'>Port:</div> \
-    <div class='control'><input class='input' type='text' name='port'>"+ mqttPort +"</div></div>");
+    <div class='control'><input class='input' type='text' name='port' value='"+ mqttPort +"'></div></div>");
   response->print("<div class='field'><div class='label'>Prefix:</div> \
-    <div class='control'><input class='input' type='text' name='prefix'>"+ mqttPrefix +"</div></div>");
+    <div class='control'><input class='input' type='text' name='prefix' value='"+ mqttPrefix +"'></div></div>");
   response->print("<div class='field'><div class='label'>User Id:</div> \
-    <div class='control'><input class='input' type='text' name='user'>"+ mqttUser +"</div></div>");
+    <div class='control'><input class='input' type='text' name='user' value='"+ mqttUser +"'></div></div>");
   response->print("<div class='field'><div class='label'>Password:</div> \
-    <div class='control'><input class='input' type='password' name='pass'>"+ mqttPass +"</div></div>");
-  response->print(F("</form>"));
+    <div class='control'><input class='input' type='password' name='pass' value='"+ mqttPass +"'></div></div>");
+  response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>"));
   request->send(response);
   });
 

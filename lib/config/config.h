@@ -29,7 +29,6 @@ String deviceName=getESPDevName();
 
 void initFileSystem()
 {
-#ifdef ESP8266
 #if defined ESP8266 && filesystem == littlefs
     Serial.println("Mounting Flash...");
     if (!LittleFS.begin())
@@ -49,15 +48,15 @@ void initFileSystem()
     Serial.println("Mounting SPIFFS...");
     if (!SPIFFS.begin())
     {
-        Serial.println("Failed to mount file system");
-        return;
-    }
-#endif
-#else
-    Serial.println("Mounting SPIFFS...");
-    if (!SPIFFS.begin())
-    {
-        Serial.println("Failed to mount file system");
+        Serial.println("Failed to mount file system. Format it.");
+        if(!SPIFFS.format())
+        {
+          Serial.println("Failedto format file system");
+        }
+        if(!SPIFFS.begin())
+        {
+            Serial.println("Failed to mount file system after format");
+        }
         return;
     }
 #endif
@@ -82,13 +81,13 @@ void writeConfig(String ssid,String passwd,String device=getESPDevName())
   {
     doc["ssid"]=ssid;
     doc["passwd"]=passwd;
-    doc["deviceName"]=deviceName;
+    doc["deviceName"]=device;
   }
   else
   {
     doc["ssid"]=".";
     doc["passwd"]=".";
-    doc["deviceName"]=deviceName;
+    doc["deviceName"]=device;
   }
   
   serializeJson(doc,configFile);
@@ -151,7 +150,7 @@ String getESPDevName()
   #ifdef ESP8266
   snprintf(devName,30,"ESP-%08X",ESP.getChipId());
   #else
-  uint32_t chipId;
+  uint32_t chipId=0;
   for(int i=0; i<17; i=i+8) {
 	  chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
 	}

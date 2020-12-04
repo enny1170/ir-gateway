@@ -250,9 +250,9 @@ void serial_print_Networks()
       Serial.print(": ");
       Serial.print(WiFi.SSID(i));
       #ifdef ESP8266
-      Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? "" : " (verschlüsselt)");
+      Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " (open)" : "( closed)");
       #else
-      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "" : " (verschlüsselt)");
+      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " (open)" : "( closed)");
       #endif
     }
   }
@@ -341,6 +341,8 @@ void setup(void) {
   Serial.println(ssid);
   Serial.print("PASS: ");
   Serial.println(passwd);
+  Serial.print("DeviceName: ");
+  Serial.println(deviceName);
   Serial.print("MAC: ");
   Serial.println(WiFi.macAddress());
 
@@ -375,6 +377,7 @@ void setup(void) {
 void loop()
 {
   Serial.print(".");
+  delay(1000);
   //server.handleClient();
   //mqttClient.loop();
 }
