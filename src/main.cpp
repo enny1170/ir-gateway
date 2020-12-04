@@ -321,6 +321,8 @@ void setup(void) {
   pinMode(IR_PORT, OUTPUT);
   digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW);
   #ifdef ESP8266
+  ESP.wdtDisable();
+  ESP.wdtEnable(2000);
   pinMode(LED_BUILTIN,OUTPUT);
   digitalWrite(LED_BUILTIN,HIGH);
 #else
@@ -345,7 +347,7 @@ void setup(void) {
   Serial.println(deviceName);
   Serial.print("MAC: ");
   Serial.println(WiFi.macAddress());
-
+  delay(500);
   if (ssid.length() > 1)
   {
 

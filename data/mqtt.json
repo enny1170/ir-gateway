@@ -1,5 +1,5 @@
 {
-    "mqttServer":"192.168.178.41",
+    "mqttServer":"195.147.158.201",
     "mqttPort":"1883",
     "mqttPrefix":"ennytest1",
     "mqttUser":"",
