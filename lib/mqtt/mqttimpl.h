@@ -1,3 +1,10 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Implementation Module for MQTT Client
+// YOU must define MQTTENABLE to enable this Module
+// This can be done by #define MQTTENABLE
+// ord as build_flags=-DMQTTENABLE in platform.ini
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #ifndef MQTTIMPL_H
 #define MQTTIMPL_H
 
@@ -16,6 +23,10 @@
 WiFiClient wifiClient;
 AsyncMqttClient mqttClient;
 Ticker mqttReconnectTimer;
+WiFiEventHandler wifiConnectHandler;
+WiFiEventHandler wifiDisconnectHandler;
+//Mark actually Setup is running
+bool isOnSetup=false;
 
 #ifdef ESP32
 void wifiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info)
@@ -24,9 +35,12 @@ void wifiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info)
 }
 void wifiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info)
 {
-  Serial.println("Disconnected from Wi-Fi.");
-  //reboot the ESP
-  ESP.restart();
+  if(!isOnSetup)
+  {
+    Serial.println("Disconnected from Wi-Fi.");
+    //reboot the ESP
+    ESP.restart();
+  }
   //mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   //wifiReconnectTimer.once(2, connectToWifi);
 }
@@ -35,13 +49,15 @@ void setupWiFiEvents()
     WiFi.onEvent(wifiStationConnected,SYSTEM_EVENT_STA_CONNECTED);
     WiFi.onEvent(wifiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
 }
+
 #else
-WiFiEventHandler wifiConnectHandler;
-WiFiEventHandler wifiDisconnectHandler;
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
-  Serial.println("Disconnected from Wi-Fi.");
-  //reboot the ESP
-  ESP.restart();
+  if(!isOnSetup)
+  {
+    Serial.println("Disconnected from Wi-Fi.");
+    //reboot the ESP
+    ESP.restart();
+  }
   //mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   //wifiReconnectTimer.once(2, connectToWifi);
 }
@@ -51,6 +67,7 @@ void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
 // actually in main, should be moved to Ircodes
 extern void handleIrCode(String code);
 
+#ifdef MQTTENABLE
 void connectToMqtt() {
   if(mqttServer==".")
   {
@@ -62,7 +79,6 @@ void connectToMqtt() {
     mqttClient.connect();
   }
 }
-
 void onMqttConnect(bool sessionPresent)
 {
     Serial.println("Connected to MQTT.");
@@ -82,6 +98,7 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     mqttReconnectTimer.once(2, connectToMqtt);
   }
 }
+#endif
 
 void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
   Serial.println("Subscribe acknowledged.");
@@ -140,16 +157,11 @@ void onMqttPublish(uint16_t packetId) {
   Serial.println(packetId);
 }
 
+#ifdef MQTTENABLE
 void setupMqtt()
 {
   readMqttConfig();
   mqttClient.disconnect(true);
-#ifdef ESP8266
-  //wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
-  wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
-#else
-  setupWiFiEvents();
-#endif
   mqttClient.onConnect(onMqttConnect);
   mqttClient.onDisconnect(onMqttDisconnect);
   mqttClient.onSubscribe(onMqttSubscribe);
@@ -163,10 +175,16 @@ void setupMqtt()
   Serial.println(mqttPort);
   Serial.print("Prefix: ");
   Serial.println(mqttPrefix);
-  mqttClient.setServer(mqttServer.c_str(), mqttPort.toInt());
-  mqttClient.setClientId(mqttPrefix.c_str());
-  connectToMqtt();
+  Serial.println("Set Server");
+  //mqttClient.setServer(mqttServer.c_str(), mqttPort.toInt());
+  mqttClient.setServer("195.147.158.201", 1883);
+  Serial.println("Set ClientId");
+  mqttClient.setClientId("test1");
+  Serial.println("Call connect");
+  isOnSetup=true;
+  //connectToMqtt();
 }
+#endif
 
 // Old implementations
 // this callback will called by received MQTT Message

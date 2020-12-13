@@ -56,7 +56,9 @@ void initFileSystem()
   Data File Helper Functions
 */
 
-// Create IRCode Object by members
+/******************************************************************************************************************************************
+ *  Create IRCode Object by members
+ * ****************************************************************************************************************************************/
 void writeIrCmd(String cmd,String description,String code)
 {
   const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
@@ -78,7 +80,9 @@ void writeIrCmd(String cmd,String description,String code)
 
 }
 
-//Write IRCode Object to File
+/******************************************************************************************************************************************
+ * Write IRCode Object to File
+ * ****************************************************************************************************************************************/
 void writeIrCmd(IRcode ircode)
 {
   const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
@@ -100,89 +104,95 @@ void writeIrCmd(IRcode ircode)
 
 }
 
-// Get IRCode Object from .cmd File
+/********************************************************************************************************************************************
+ *  Get IRCode Object from .cmd File
+ * ******************************************************************************************************************************************/
 IRcode readIrCmd(String cmd)
 {
     IRcode retval;
     const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
     StaticJsonDocument<capacity> doc;
-
-    if(!cmd.endsWith(".cmd"))
+    Serial.printf("Get IrCmd for '%s'\n.",cmd.c_str());
+    if (!cmd.endsWith(".cmd"))
     {
         // Commandname given
 #if defined ESP8266 && filesystem == littlefs
-    if(LittleFS.exists("/"+cmd+".cmd"))
-    {
-        irCodeFile=LittleFS.open("/"+cmd+".cmd","r");
-    }
-    else
-    {
-        retval.Cmd=cmd;
-        Serial.printf("Data for CMD %s not found.\n",cmd.c_str());
-        return retval;
-    }
-    
+        String cmdFilename="/" + cmd + ".cmd";
+        Serial.printf("Generated Filename:%s\n",cmdFilename.c_str());
+        if (LittleFS.exists(cmdFilename.c_str()))
+        {
+            irCodeFile = LittleFS.open(cmdFilename.c_str(), "r");
+        }
+        else
+        {
+            retval.Cmd = cmd;
+            Serial.printf("Data for CMD %s not found.\n", cmd.c_str());
+            return retval;
+        }
+
 #else
-    if(SPIFFS.exists(String("/"+cmd+".cmd").c_str()))
-    {
-        irCodeFile=SPIFFS.open("/"+cmd+".cmd","r");
-    }
-    else
-    {
-        retval.Cmd=cmd;
-        Serial.printf("Data for CMD %s not found.\n",cmd.c_str());
-        return retval;
-    }
-    
+        if (SPIFFS.exists(String("/" + cmd + ".cmd").c_str()))
+        {
+            irCodeFile = SPIFFS.open("/" + cmd + ".cmd", "r");
+        }
+        else
+        {
+            retval.Cmd = cmd;
+            Serial.printf("Data for CMD %s not found.\n", cmd.c_str());
+            return retval;
+        }
+
 #endif
     }
     else
     {
 #if defined ESP8266 && filesystem == littlefs
-    if(LittleFS.exists(cmd))
-    {
-        irCodeFile=LittleFS.open(cmd,"r");
-    }
-    else
-    {
-        retval.Cmd=cmd;
-        Serial.printf("Data for CMD %s not found.\n",cmd.c_str());
-        return retval;
-    }
-    
+        if (LittleFS.exists(cmd.c_str()))
+        {
+            irCodeFile = LittleFS.open(cmd.c_str(), "r");
+        }
+        else
+        {
+            retval.Cmd = cmd;
+            Serial.printf("Data for CMD %s not found.\n", cmd.c_str());
+            return retval;
+        }
+
 #else
-    if(SPIFFS.exists(cmd))
-    {
-        irCodeFile=SPIFFS.open(cmd,"r");
-    }
-    else
-    {
-        retval.Cmd=cmd;
-        Serial.printf("Data for CMD %s not found.\n",cmd.c_str());
-        return retval;
-    }
-    
+        if (SPIFFS.exists(cmd))
+        {
+            irCodeFile = SPIFFS.open(cmd, "r");
+        }
+        else
+        {
+            retval.Cmd = cmd;
+            Serial.printf("Data for CMD %s not found.\n", cmd.c_str());
+            return retval;
+        }
+
 #endif
     }
-    
-  DeserializationError err = deserializeJson(doc, irCodeFile);
-  irCodeFile.close();
-  if(err)
-  {
-    Serial.println("Unable to read IrCode Data (Json Error)");
-    Serial.println(err.c_str());
-  }
-  else
-  {
-    retval.Cmd=doc["cmd"].as<String>();
-    retval.Description=doc["description"].as<String>();
-    retval.Code=doc["code"].as<String>();
-  }
 
+    DeserializationError err = deserializeJson(doc, irCodeFile);
+    irCodeFile.close();
+    if (err)
+    {
+        Serial.println("Unable to read IrCode Data (Json Error)");
+        Serial.println(err.c_str());
+    }
+    else
+    {
+        retval.Cmd = doc["cmd"].as<String>();
+        retval.Description = doc["description"].as<String>();
+        retval.Code = doc["code"].as<String>();
+    }
 
     return retval;
 }
 
+/********************************************************************************************************************
+ * List available CMD'S as string for serial Console
+ * ******************************************************************************************************************/
 String listCmds()
 {
     String retval="";
@@ -224,6 +234,9 @@ String listCmds()
 
 }
 
+/*****************************************************************************************************************************************
+ * Get available CMD's as comma seperated string
+ * ***************************************************************************************************************************************/
 String getCmds()
 {
     String retval="";
@@ -258,7 +271,9 @@ String getCmds()
     return retval;
 }
 
-// Build a HTML Form with Buttons for each CMD
+/***********************************************************************************************************************************
+ *  Build a HTML Form with Buttons for each CMD
+ * *********************************************************************************************************************************/
 String buildCmdPage()
 {
     String retval="";
@@ -273,8 +288,9 @@ String buildCmdPage()
         {
             int pointPos=dir.fileName().indexOf('.');
             retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
-            retval += dir.fileName().substring(0,pointPos-1);
-            retval += F("'/></div>");
+            retval += dir.fileName().substring(0,pointPos);
+            retval += F("' name='button'");
+            retval += F("/></div></div>");
         }
     }
     retval +=F("</form>");
@@ -288,8 +304,9 @@ String buildCmdPage()
         {
             int pointPos=fileName.indexOf('.');
             retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
-            retval += fileName.substring(0,pointPos-1);
-            retval += F("'/></div>");
+            retval += dir.fileName().substring(0,pointPos);
+            retval += F("' name='button'");
+            retval += F("/></div></div>");
         }
         file=dir.openNextFile();
     }

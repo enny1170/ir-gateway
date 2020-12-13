@@ -320,8 +320,9 @@ void configureWebServer()
   server.on("/mqtt", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response=request->beginResponseStream("text/html");
   readMqttConfig();
+  Serial.println("Config read success");
   response->print(getHtmlPrefix());
-  response->print(F("<form method='Get' action='mqttset' >"));
+  response->print("<form method='Get' action='mqttset' >");
   response->print("<div class='field'><div class='label'>Server IP:</div> \
     <div class='control'><input class='input' type='text' name='server' value='"+ mqttServer +"'></div></div>");
   response->print("<div class='field'><div class='label'>Port:</div> \
@@ -332,7 +333,9 @@ void configureWebServer()
     <div class='control'><input class='input' type='text' name='user' value='"+ mqttUser +"'></div></div>");
   response->print("<div class='field'><div class='label'>Password:</div> \
     <div class='control'><input class='input' type='password' name='pass' value='"+ mqttPass +"'></div></div>");
-  response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>"));
+  response->print("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>");
+  response->print(getHtmlSuffix());
+  Serial.println("Sending Response");
   request->send(response);
   });
 
@@ -363,7 +366,9 @@ void configureWebServer()
     //Reset Mqtt Config
     writeMqttConfig();
   }
+  #ifdef MQTTENABLE
   setupMqtt();
+  #endif
   request->redirect("/mqtt");
   });
 
@@ -385,9 +390,9 @@ void configureWebServer()
 
   server.on("/cmd", HTTP_GET, [](AsyncWebServerRequest *request) {
   String cmd;
-  if(request->hasParam("submit"))
+  if(request->hasParam("button"))
   {
-    cmd=request->getParam("submit")->value();
+    cmd=request->getParam("button")->value();
   }
   IRcode code = readIrCmd(cmd);
   handleIrCode(code.Code);

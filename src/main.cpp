@@ -25,22 +25,25 @@
 #define IR_RECEIVE_WAIT_TIME 30000
 
 #ifndef OFFSET_START
-  #define OFFSET_START   kStartOffset   // Usual rawbuf entry to start processing from.
+#define OFFSET_START kStartOffset // Usual rawbuf entry to start processing from.
 #endif
-
 
 // Netzwerkinformationen für Accesspoint
 // Im AP-Modus ist der ESP8266 unter der IP 192.168.0.1 erreichbar
-const char* ssidAP = "ESP8266 for RCoid Access Point";
-const char* passwordAP = "passpass";  //Muss mindestens 8 Zeichen haben
+const char *ssidAP = "ESP8266 for RCoid Access Point";
+const char *passwordAP = "passpass"; //Muss mindestens 8 Zeichen haben
 
 char ir[1024];
+IRrecv irReceiver(IR_RECEIVER_PORT);
+decode_results irDecoded;
+
 
 /*
    Gibt die CPU Takte zurück, die seit dem Neustart vergangen sind.
    läuft ca. alle 53 Sekunden über
 */
-#define RSR_CCOUNT(r)     __asm__ __volatile__("rsr %0,ccount":"=a" (r))
+#define RSR_CCOUNT(r) __asm__ __volatile__("rsr %0,ccount" \
+                                           : "=a"(r))
 static inline uint32_t get_ccount()
 {
   uint32_t ccount;
@@ -48,7 +51,7 @@ static inline uint32_t get_ccount()
   return ccount;
 }
 
-
+#pragma region OldIrCodeHandler
 /*
    sendet ein RCoid-IR-Signal
    z.B.:
@@ -100,6 +103,9 @@ static inline uint32_t get_ccount()
 //   server.send(200, "text/plain", htmlcontent);
 // }
 
+#pragma endregion
+
+#pragma region handleIrCode
 /*
   IRCode Handler without HTTP Server
   is used by CMD-Site and MQTT
@@ -109,7 +115,7 @@ void handleIrCode(String code)
 
   pinMode(IR_PORT, OUTPUT);
 
-  if (code.length()>0)
+  if (code.length() > 0)
   {
     (code + ",0").toCharArray(ir, 1024);
 
@@ -125,20 +131,21 @@ void handleIrCode(String code)
     while (pulses != 0)
     {
       RSR_CCOUNT(startTicks);
-      for (unsigned int i = 0 ; i < pulses * 2; i++)
+      for (unsigned int i = 0; i < pulses * 2; i++)
       {
         if (IR_PORT_INVERT)
           digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? LOW : HIGH);
         else
           digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? HIGH : LOW);
-        while (get_ccount() < startTicks + i * halfPeriodTicks) {} //Warten
+        while (get_ccount() < startTicks + i * halfPeriodTicks)
+        {
+        } //Warten
       }
       burst = !burst;
       p++; //Komma im String wird übersprungen
       pulses = strtol(p, &p, 10);
     }
     digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW); //Am Ende IR immer AUS
-
   }
   else
   {
@@ -148,10 +155,9 @@ void handleIrCode(String code)
   Serial.println("IrCode send");
 }
 
-IRrecv irReceiver(IR_RECEIVER_PORT);
-decode_results irDecoded;
+#pragma endregion
 
-
+#pragma region handleReceiveIr
 /*
   wartet eine Zeit ab, bis am Receiver ein IR Signal decodiert wurde
   blockiert den ESP
@@ -159,7 +165,7 @@ decode_results irDecoded;
 String handleReceiveIr()
 {
 
-  irReceiver.enableIRIn();  // Start the receiver
+  irReceiver.enableIRIn(); // Start the receiver
   unsigned long start = millis();
 
   String irData;
@@ -215,8 +221,8 @@ String handleReceiveIr()
 
       //server.send(200, "application/json", htmlcontent);
 
-      irReceiver.resume();  // Receive the next value
-      irReceiver.disableIRIn();  // Stopps the receiver
+      irReceiver.resume();      // Receive the next value
+      irReceiver.disableIRIn(); // Stopps the receiver
 
       return irData;
     }
@@ -231,7 +237,9 @@ String handleReceiveIr()
   return irData;
 }
 
+#pragma endregion
 
+#pragma region serial_print_Networks
 /*
    Zeigt eine Liste mit verfügbaren Netzwerken im Serial-Monitor an
 */
@@ -249,18 +257,17 @@ void serial_print_Networks()
       Serial.print(i + 1);
       Serial.print(": ");
       Serial.print(WiFi.SSID(i));
-      #ifdef ESP8266
+#ifdef ESP8266
       Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " (open)" : "( closed)");
-      #else
+#else
       Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " (open)" : "( closed)");
-      #endif
+#endif
     }
   }
   Serial.println("");
 }
 
-
-
+#pragma endregion
 /*
    Wartet die gegebene Zeit t(in s)ab, bis die Verbindung zum WLAN besteht.
    gibt "true" zurück, wenn die Verbindung besteht.
@@ -293,7 +300,8 @@ bool WaitForConnection(int t)
 
 */
 
-void setupAP(void) {
+void setupAP(void)
+{
   WiFi.mode(WIFI_AP_STA);
 
   serial_print_Networks();
@@ -305,39 +313,33 @@ void setupAP(void) {
   WiFi.softAP(ssidAP, passwordAP, 3, false);
   delay(100);
   configureWebServer();
-  #ifdef ESP8266
-  digitalWrite(LED_BUILTIN,LOW);
-  #endif
+#ifdef ESP8266
+  digitalWrite(LED_BUILTIN, LOW);
+#endif
   Serial.println("HTTP server started");
 }
-
-
 
 /*
    ////////////////////////////////////   SETUP   ///////////////////////////////////////////
 */
-void setup(void) {
+void setup(void)
+{
 
   pinMode(IR_PORT, OUTPUT);
   digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW);
-  #ifdef ESP8266
-  ESP.wdtDisable();
-  ESP.wdtEnable(2000);
-  pinMode(LED_BUILTIN,OUTPUT);
-  digitalWrite(LED_BUILTIN,HIGH);
+#ifdef ESP8266
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
 #else
-//ESP32 devKit V2 has no onboard LED only Power
-  #endif
+  //ESP32 devKit V2 has no onboard LED only Power
+#endif
   Serial.begin(115200);
   // Serial.println("Init Filesystem");
-  
+
   initFileSystem();
   checkConfig();
   // try to load Config
   readConfig();
-  checkMqttConfig();
-  readMqttConfig();
-
   Serial.println(getESPDevName());
   Serial.print("SSID: ");
   Serial.println(ssid);
@@ -347,13 +349,22 @@ void setup(void) {
   Serial.println(deviceName);
   Serial.print("MAC: ");
   Serial.println(WiFi.macAddress());
-  delay(500);
+#ifdef MQTTENABLE
+//Setup WiFi Events nedded for MQTT-Client
+#ifdef ESP8266
+  //wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
+  wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
+#else
+  setupWiFiEvents();
+#endif
+#endif
   if (ssid.length() > 1)
   {
 
     WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid.c_str(), passwd.c_str());  //Starte WIFI mit den Zugangsdaten aus Config
+    WiFi.begin(ssid.c_str(), passwd.c_str()); //Starte WIFI mit den Zugangsdaten aus Config
     Serial.println("");
+   
 
     if (WaitForConnection(10))
     {
@@ -364,14 +375,23 @@ void setup(void) {
       Serial.println(WiFi.localIP());
       configureWebServer();
       Serial.println("HTTP server started");
-      Serial.println("Start MqttClient");
+      #ifdef MQTTENABLE
+//Setup WiFi Events nedded for MQTT-Client
+#ifdef ESP8266
+  //wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
+  wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
+#else
+  setupWiFiEvents();
+#endif
+      checkMqttConfig();
+      Serial.println("Setup MqttClient");
       setupMqtt();
+      #endif
       return;
     }
   }
-  setupAP();  //wenn keine Verbindung zum WLAN hergestellt werden konnte, wird der Accespoint aufgespannt.
+  setupAP(); //wenn keine Verbindung zum WLAN hergestellt werden konnte, wird der Accespoint aufgespannt.
 }
-
 
 /*
    Hauptschleife
@@ -379,7 +399,14 @@ void setup(void) {
 void loop()
 {
   Serial.print(".");
-  delay(1000);
+  delay(500);
+  if(isOnSetup)
+  {
+    Serial.println("MQTT Connect from Loop");
+    //connectToMqtt();
+    mqttClient.connect();
+    isOnSetup=false;
+  }
   //server.handleClient();
   //mqttClient.loop();
 }

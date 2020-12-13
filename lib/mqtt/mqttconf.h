@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <tools.h>
 
 #ifndef ESP32
 #if filesystem==littlefs
@@ -13,14 +14,14 @@
 #endif
 #else
     #include <FS.h>
+    #include <SPIFFS.h>
     #define SPIFFS_USE_MAGIC
 #endif
 
 #define MQTT_SIZE 210
 #define MQTT_FILE_NAME "/mqtt.json"
 
-String getESPDevName();
-// global variables for PubSubClient
+// global variables for MQTTClient
 File mqttFile;
 String mqttServer=".";
 String mqttPort="1833";
@@ -28,36 +29,6 @@ String mqttPrefix=getESPDevName();
 String mqttUser="";
 String mqttPass="";
 
-#ifndef CONFIG_H
-
-void initFileSystem()
-{
-#if defined ESP8266 && filesystem == littlefs
-    Serial.println("Mounting SPIFFS...");
-    if (!LittleFS.begin())
-    {
-        Serial.println("Failed to mount file system. Format it");
-        if(!LittleFS.format())
-        {
-            Serial.println("Failed to format file system");
-        }
-        if(!LittleFS.begin())
-        {
-            Serial.println("Failed to mount file system after format");
-        }
-        return;
-    }
-#else
-    Serial.println("Mounting SPIFFS...");
-    if (!SPIFFS.begin())
-    {
-        Serial.println("Failed to mount file system");
-        return;
-    }
-#endif
-}
-
-#endif
 /*
   Config File Helper Functions
 */
@@ -144,16 +115,5 @@ void checkMqttConfig()
 
 
 }
-
-#ifndef CONFIG_H
-
-String getESPDevName()
-{
-  char devName[30];
-  snprintf(devName,30,"ESP-%08X",ESP.getChipId());
-  return (String)devName;
-}
-
-#endif
 
 #endif

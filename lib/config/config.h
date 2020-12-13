@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <tools.h>
 
 #ifndef ESP32
 #if filesystem==littlefs
@@ -26,41 +27,6 @@ File configFile;
 String ssid;
 String passwd;
 String deviceName=getESPDevName();
-
-void initFileSystem()
-{
-#if defined ESP8266 && filesystem == littlefs
-    Serial.println("Mounting Flash...");
-    if (!LittleFS.begin())
-    {
-        Serial.println("Failed to mount file system. Format it");
-        if(!LittleFS.format())
-        {
-            Serial.println("Failed to format file system");
-        }
-        if(!LittleFS.begin())
-        {
-            Serial.println("Failed to mount file system after format");
-        }
-        return;
-    }
-#else
-    Serial.println("Mounting SPIFFS...");
-    if (!SPIFFS.begin())
-    {
-        Serial.println("Failed to mount file system. Format it.");
-        if(!SPIFFS.format())
-        {
-          Serial.println("Failedto format file system");
-        }
-        if(!SPIFFS.begin())
-        {
-            Serial.println("Failed to mount file system after format");
-        }
-        return;
-    }
-#endif
-}
 
 /*
   Config File Helper Functions
@@ -142,21 +108,6 @@ void checkConfig()
 #endif
 
 
-}
-
-String getESPDevName()
-{
-  char devName[30];
-  #ifdef ESP8266
-  snprintf(devName,30,"ESP-%08X",ESP.getChipId());
-  #else
-  uint32_t chipId=0;
-  for(int i=0; i<17; i=i+8) {
-	  chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-	}
-  snprintf(devName,30,"ESP-%08X",chipId);
-  #endif
-  return (String)devName;
 }
 
 #endif
