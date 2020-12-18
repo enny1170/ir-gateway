@@ -207,14 +207,16 @@ void configureWebServer()
     if (request->hasParam("code"))
     {
       message = request->getParam("code")->value();
-      handleIrCode(message);
-      message+=" - OK";
+      //handleIrCode(message);
+      addIrCodeToQueue(message);
+      message="OK";
+      request->send(200, "text/plain", message);
     }
     else
     {
-      message = "Code not send";
+      message += " Code not send";
+      request->send(500, "text/plain", "IrResult: " + message);
     }
-    request->send(200, "text/plain", "IrResult: " + message);
   });
 
 /*****************************************************************************************************

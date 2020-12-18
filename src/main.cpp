@@ -19,37 +19,13 @@
 #include <ircodes.h>
 #include <mqttimpl.h>
 
-#define IR_PORT 0
-#define IR_PORT_INVERT false
-#define IR_RECEIVER_PORT 2
-#define IR_RECEIVE_WAIT_TIME 30000
-
-#ifndef OFFSET_START
-#define OFFSET_START kStartOffset // Usual rawbuf entry to start processing from.
-#endif
+// The IR Hardware are defined in ircodes.h
 
 // Netzwerkinformationen für Accesspoint
 // Im AP-Modus ist der ESP8266 unter der IP 192.168.0.1 erreichbar
 const char *ssidAP = "ESP8266 for RCoid Access Point";
 const char *passwordAP = "passpass"; //Muss mindestens 8 Zeichen haben
 
-char ir[1024];
-IRrecv irReceiver(IR_RECEIVER_PORT);
-decode_results irDecoded;
-
-
-/*
-   Gibt die CPU Takte zurück, die seit dem Neustart vergangen sind.
-   läuft ca. alle 53 Sekunden über
-*/
-#define RSR_CCOUNT(r) __asm__ __volatile__("rsr %0,ccount" \
-                                           : "=a"(r))
-static inline uint32_t get_ccount()
-{
-  uint32_t ccount;
-  RSR_CCOUNT(ccount);
-  return ccount;
-}
 
 #pragma region OldIrCodeHandler
 /*
@@ -157,87 +133,88 @@ void handleIrCode(String code)
 
 #pragma endregion
 
-#pragma region handleReceiveIr
-/*
-  wartet eine Zeit ab, bis am Receiver ein IR Signal decodiert wurde
-  blockiert den ESP
-*/
-String handleReceiveIr()
-{
+// #pragma region handleReceiveIr
+// /*
+//   wartet eine Zeit ab, bis am Receiver ein IR Signal decodiert wurde
+//   blockiert den ESP
+// */
+// String handleReceiveIr()
+// {
 
-  irReceiver.enableIRIn(); // Start the receiver
-  unsigned long start = millis();
 
-  String irData;
+//   irReceiver.enableIRIn(); // Start the receiver
+//   unsigned long start = millis();
 
-  while (millis() < start + IR_RECEIVE_WAIT_TIME)
-  {
-    if (irReceiver.decode(&irDecoded))
-    {
-      //Read and format IrData
-      irData = "{\n";
-      irData += "  \"Protocol\" : ";
-      irData += "\"";
-      irData += typeToString(irDecoded.decode_type, false);
-      irData += "\",\n";
-      irData += "  \"Value\" : \"";
-      irData += uint64ToString(irDecoded.value, HEX);
-      irData += "\",\n";
-      irData += "  \"Length\" : \"";
-      irData += irDecoded.rawlen;
-      irData += "\",\n";
-      irData += "  \"Address\" : \"";
-      irData += irDecoded.address;
-      irData += "\",\n";
-      irData += "  \"Command\" : \"";
-      irData += irDecoded.command;
-      irData += "\",\n";
-      irData += "  \"RCoid IR Code\" : \"";
-      int freq = 38000;
-      if (typeToString(irDecoded.decode_type, false).equals("SONY"))
-        freq = 40000;
-      irData += freq;
-      for (int i = OFFSET_START; i < irDecoded.rawlen; i++)
-      {
-        irData += ",";
-        irData += (int)(((irDecoded.rawbuf[i] * RAWTICK) * freq) / 1000000);
-      }
-      if (irDecoded.rawlen % 2 == 0)
-      {
-        irData += ",1";
-      }
-      irData += "\"\n";
-      irData += "}";
-      // // create HTML
-      // htmlcontent = getHtmlPrefix();
-      // htmlcontent += "<div class='field'><div class='control'>";
-      // htmlcontent += irData;
-      // htmlcontent += "</div></div>";
-      // htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
-      // htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
-      // htmlcontent += getHtmlSuffix();
+//   String irData;
 
-      Serial.println(irData);
+//   while (millis() < start + IR_RECEIVE_WAIT_TIME)
+//   {
+//     if (irReceiver.decode(&irDecoded))
+//     {
+//       //Read and format IrData
+//       irData = "{\n";
+//       irData += "  \"Protocol\" : ";
+//       irData += "\"";
+//       irData += typeToString(irDecoded.decode_type, false);
+//       irData += "\",\n";
+//       irData += "  \"Value\" : \"";
+//       irData += uint64ToString(irDecoded.value, HEX);
+//       irData += "\",\n";
+//       irData += "  \"Length\" : \"";
+//       irData += irDecoded.rawlen;
+//       irData += "\",\n";
+//       irData += "  \"Address\" : \"";
+//       irData += irDecoded.address;
+//       irData += "\",\n";
+//       irData += "  \"Command\" : \"";
+//       irData += irDecoded.command;
+//       irData += "\",\n";
+//       irData += "  \"RCoid IR Code\" : \"";
+//       int freq = 38000;
+//       if (typeToString(irDecoded.decode_type, false).equals("SONY"))
+//         freq = 40000;
+//       irData += freq;
+//       for (int i = OFFSET_START; i < irDecoded.rawlen; i++)
+//       {
+//         irData += ",";
+//         irData += (int)(((irDecoded.rawbuf[i] * RAWTICK) * freq) / 1000000);
+//       }
+//       if (irDecoded.rawlen % 2 == 0)
+//       {
+//         irData += ",1";
+//       }
+//       irData += "\"\n";
+//       irData += "}";
+//       // // create HTML
+//       // htmlcontent = getHtmlPrefix();
+//       // htmlcontent += "<div class='field'><div class='control'>";
+//       // htmlcontent += irData;
+//       // htmlcontent += "</div></div>";
+//       // htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
+//       // htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
+//       // htmlcontent += getHtmlSuffix();
 
-      //server.send(200, "application/json", htmlcontent);
+//       Serial.println(irData);
 
-      irReceiver.resume();      // Receive the next value
-      irReceiver.disableIRIn(); // Stopps the receiver
+//       //server.send(200, "application/json", htmlcontent);
 
-      return irData;
-    }
-    delay(100);
-  };
-  // htmlcontent = getHtmlPrefix();
-  // htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
-  // htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
-  // htmlcontent += getHtmlSuffix();
+//       irReceiver.resume();      // Receive the next value
+//       irReceiver.disableIRIn(); // Stopps the receiver
 
-  // server.send(408, "text/plain", htmlcontent);
-  return irData;
-}
+//       return irData;
+//     }
+//     delay(100);
+//   };
+//   // htmlcontent = getHtmlPrefix();
+//   // htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
+//   // htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
+//   // htmlcontent += getHtmlSuffix();
 
-#pragma endregion
+//   // server.send(408, "text/plain", htmlcontent);
+//   return irData;
+// }
+
+// #pragma endregion
 
 #pragma region serial_print_Networks
 /*
@@ -399,6 +376,9 @@ void setup(void)
 void loop()
 {
   Serial.print(".");
+  //Call the IR Receiver Handler
+  receive_ir_nonblock(true);
+  sendIrCodeFromQueue();
   delay(500);
   if(isOnSetup)
   {

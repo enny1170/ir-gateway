@@ -3,7 +3,11 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <IRremoteESP8266.h>
+#include <IRrecv.h>
+#include <IRutils.h>
 #include <ircode.h>
+#include <cppQueue.h>
 
 #ifndef ESP32
 #if filesystem==littlefs
@@ -17,10 +21,218 @@
     #define SPIFFS_USE_MAGIC
 #endif
 
+
 #define IRCODE_SIZE 309
 #define IRCODE_FILE_NAME "/ircodes.json"
+#define	IMPLEMENTATION	FIFO
+
+#ifndef OFFSET_START
+#define OFFSET_START kStartOffset // Usual rawbuf entry to start processing from.
+#endif
 
 File irCodeFile;
+
+/***********************************************************************************************************************************************************************************
+ * 
+ * IR Support 
+ * 
+ * *********************************************************************************************************************************************************************************/
+// Hardware Defines
+#define IR_PORT 0
+#define IR_PORT_INVERT false
+#define IR_RECEIVER_PORT 2
+#define IR_RECEIVE_WAIT_TIME 30000
+
+// IR Variables
+char ir[1024];
+String irProtocoll;
+String irValue;
+String irLength;
+String irAddress;
+String irCommand;
+String irCode;
+String irReceiveState;
+IRrecv irReceiver(IR_RECEIVER_PORT);
+decode_results irDecoded;
+bool irReceiverState=false;
+bool irReceiveFinished=false;
+unsigned long receiverStart=0;
+
+typedef struct strRec {
+	char data[256];
+} Rec;
+//Create Que for Strings with max 5 Entrys
+cppQueue irSendQueue (sizeof(String), 5, IMPLEMENTATION);
+
+/*
+   Gibt die CPU Takte zurück, die seit dem Neustart vergangen sind.
+   läuft ca. alle 53 Sekunden über
+*/
+#define RSR_CCOUNT(r) __asm__ __volatile__("rsr %0,ccount" \
+                                           : "=a"(r))
+static inline uint32_t get_ccount()
+{
+  uint32_t ccount;
+  RSR_CCOUNT(ccount);
+  return ccount;
+}
+
+/***********************************************************************************************************************************************************************************
+ * IR Receive non blocking
+ * 
+ * this will be called from Webserver, and must integrated in Loop with fromLopp=true
+ * *********************************************************************************************************************************************************************************/
+
+void receive_ir_nonblock(bool fromLoop=false)
+{
+  if(fromLoop)
+  {
+      //Called from Loop, if enabled check Timout and result
+      if(irReceiverState)
+      {
+          // Receive is enabled check the results
+          if(irReceiver.decode(&irDecoded))
+          {
+              irReceiveFinished=true;
+              irReceiveState="IR CMD Received";
+              irProtocoll=typeToString(irDecoded.decode_type, false);
+              irValue=uint64ToString(irDecoded.value, HEX);
+              irAddress=irDecoded.address;
+              irLength=irDecoded.rawlen;
+              irCommand=irDecoded.command;
+              irCode="";
+              int freq = 38000;
+                if (typeToString(irDecoded.decode_type, false).equals("SONY"))
+                    freq = 40000;
+                irCode += freq;
+                for (int i = OFFSET_START; i < irDecoded.rawlen; i++)
+                {
+                    irCode += ",";
+                    irCode += (int)(((irDecoded.rawbuf[i] * RAWTICK) * freq) / 1000000);
+                }
+                if (irDecoded.rawlen % 2 == 0)
+                {
+                    irCode += ",1";
+                }
+                //printout the captured Infos
+                Serial.println(irReceiveState);
+                Serial.print("Protocoll: ");
+                Serial.println(irProtocoll);
+                Serial.print("Value: ");
+                Serial.println(irValue);
+                Serial.print("Address: ");
+                Serial.println(irAddress);
+                Serial.print("Length: ");
+                Serial.println(irLength);
+                Serial.print("Command: ");
+                Serial.println(irCommand);
+                Serial.print("Code: ");
+                Serial.println(irCode);
+              irReceiver.resume();      // Receive the next value
+              irReceiver.disableIRIn(); // Stopps the receiver
+              irReceiverState=false;
+          }
+          else if(millis() < receiverStart + IR_RECEIVE_WAIT_TIME)
+          {
+              //Timeout stop receiver
+              irReceiveFinished=true;
+              irReceiveState="Timeout no IR CMD Received";
+              Serial.println(irReceiveState);
+              irReceiver.resume();      // Receive the next value
+              irReceiver.disableIRIn(); // Stopps the receiver
+              irReceiverState=false;
+          }
+      }
+  }
+  else
+  {
+      // is called by Webserver, enable irReceiver if it not enabled and finished is false
+      if(!irReceiverState && !irReceiveFinished)
+      {
+          irReceiverState=true;
+          irReceiveState="IR Receiver enabled, waiting for Data";
+          irReceiver.enableIRIn();
+      }
+  }
+
+}
+
+/**************************************************************************************************************************************************************************
+ * IRCode Handler without HTTP Server
+ * is used by CMD-Site and MQTT but blocking
+***************************************************************************************************************************************************************************/
+void handleIrCode(String code)
+{
+
+  pinMode(IR_PORT, OUTPUT);
+
+  if (code.length() > 0)
+  {
+    (code + ",0").toCharArray(ir, 1024);
+
+    char *p; //Pointer in array
+    unsigned int frequence = strtol(ir, &p, 10);
+    p++; //do not interprete comma in string
+    unsigned int pulses = strtol(p, &p, 10);
+
+    bool burst = true; //start IR Lighting
+
+    unsigned int startTicks;
+    unsigned int halfPeriodTicks = 40000000 / frequence;
+    while (pulses != 0)
+    {
+      RSR_CCOUNT(startTicks);
+      for (unsigned int i = 0; i < pulses * 2; i++)
+      {
+        if (IR_PORT_INVERT)
+          digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? LOW : HIGH);
+        else
+          digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? HIGH : LOW);
+        while (get_ccount() < startTicks + i * halfPeriodTicks)
+        {
+        } //Wait for ticks
+      }
+      burst = !burst;
+      p++; //do not interprete comma in string
+      pulses = strtol(p, &p, 10);
+    }
+    digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW); //Turn IR Light off
+  }
+  else
+  {
+    Serial.println("Unknown Code Length");
+    return;
+  }
+  Serial.println("IrCode send");
+}
+
+/********************************************************************************************************************************************************************
+ * Add a IrCode to the Queue, used by HTTP and MQTT to create a non blocking IrCode sending, for Async implementations
+ * ******************************************************************************************************************************************************************/
+void addIrCodeToQueue(String code)
+{
+    if(!irSendQueue.isFull())
+    {
+        irSendQueue.push(&code);
+    }
+    else
+    {
+        Serial.println("Overfow for irSendQueue detected.");
+    }
+}
+
+/*******************************************************************************************************************************************************************
+ * Send IrCodes saved into the Queue. This must called from Loop
+ * *****************************************************************************************************************************************************************/
+void sendIrCodeFromQueue()
+{
+    if(!irSendQueue.isEmpty())
+    {
+        String tmpCode;
+        irSendQueue.pull(&tmpCode);
+        handleIrCode(tmpCode);
+    }
+}
 
 #ifndef CONFIG_H
 
