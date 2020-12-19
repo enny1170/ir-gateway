@@ -292,27 +292,39 @@ void configureWebServer()
  * ***************************************************************************************************/
 
   server.on("/receiveir", HTTP_GET, [](AsyncWebServerRequest *request) {
-    String result = handleReceiveIr();
-    if (result.length() > 0)
+    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    receive_ir_nonblock();
+    response->print(getHtmlPrefix());
+    response->print("<div class='field'><div class='control'>");
+    response->print(irReceiveState);
+    response->print("</div></div>");
+    if(irReceiveFinished)
     {
-      htmlcontent = getHtmlPrefix();
-      htmlcontent += "<div class='field'><div class='control'>";
-      htmlcontent += result;
-      htmlcontent += "</div></div>";
-      htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
-      htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
-      htmlcontent += getHtmlSuffix();
-      request->send(200, "application/json", htmlcontent);
+        //Display the results
+        response->print("<form method='Post' action='/cmd'>");
+        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='protocoll' value='%s'></div></div>","Protocoll",irProtocoll.c_str());
+        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='value' value='%s'></div></div>","Value",irValue.c_str());
+        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='address' value='%s'></div></div>","Address",irAddress.c_str());
+        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='length' value='%s'></div></div>","Length",irLength.c_str());
+        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='command' value='%s'></div></div>","Command",irCommand.c_str());
+        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='code' value='%s'></div></div>","Code",irCode.c_str());
+        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='cmdname' value='%s'></div></div>","Save as CMD-Name",irCommand.c_str());
+        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='cmddescription' value='%s'></div></div>","Description","");
+        response->print("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save as CMD'/></div></div></form>");
+    }
+    response->print(F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back</a></div></div>"));
+    if(irReceiveFinished)
+    {
+      response->print(F("<div class='field'><a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
+      response->print(getHtmlSuffix());
+      irReceiveFinished=false;
     }
     else
     {
-      htmlcontent = getHtmlPrefix();
-      htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
-      htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
-      htmlcontent += getHtmlSuffix();
-
-      request->send(408, "text/html", htmlcontent);
+      //Send header with Meta Tags
+      response->print(F("</div></div></section></body><head><meta http-equiv='refresh' content='5'></head></html>"));
     }
+      request->send(response);
   });
 
 /*****************************************************************************************************
@@ -399,6 +411,51 @@ void configureWebServer()
   IRcode code = readIrCmd(cmd);
   handleIrCode(code.Code);
   request->redirect("/cmds");
+  });
+
+  //Save a new Cmd with values by Post Request
+  server.on("/cmd",HTTP_POST,[](AsyncWebServerRequest *request){
+    int params= request->params();
+    IRcode tmpCode;
+    Serial.println("/cmd Post-Parameters");
+    for(int i=0;i<params;i++){
+      AsyncWebParameter* p = request->getParam(i);
+      if(p->isFile())
+      { //p->isPost() is also true
+        Serial.printf("FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
+      } 
+      else if(p->isPost())
+      {
+        Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
+        if(p->name()=="code")
+        {
+          tmpCode.Code=p->value();
+        }
+        else if(p->name()=="cmddescription")
+        {
+          tmpCode.Description=p->value();
+        }
+        else if (p->name()=="cmdname")
+        {
+          tmpCode.Cmd=p->value();
+        }
+      } 
+      else 
+      {
+        Serial.printf("GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
+      }
+    } // for(int i=0;i<params;i++)
+    writeIrCmd(tmpCode);
+    request->redirect("/cmds");
+  });
+
+  // Edit Command
+  server.on("/editcmd",HTTP_GET,[](AsyncWebServerRequest *request){
+    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    response->print(getHtmlPrefix());
+    response->print(buildCmdEditPage());
+    response->print(getHtmlSuffix());
+    request->send(response);
   });
 
 /*****************************************************************************************************

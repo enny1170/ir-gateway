@@ -81,57 +81,57 @@ const char *passwordAP = "passpass"; //Muss mindestens 8 Zeichen haben
 
 #pragma endregion
 
-#pragma region handleIrCode
-/*
-  IRCode Handler without HTTP Server
-  is used by CMD-Site and MQTT
-*/
-void handleIrCode(String code)
-{
+// #pragma region handleIrCode
+// /*
+//   IRCode Handler without HTTP Server
+//   is used by CMD-Site and MQTT
+// */
+// void handleIrCode(String code)
+// {
 
-  pinMode(IR_PORT, OUTPUT);
+//   pinMode(IR_PORT, OUTPUT);
 
-  if (code.length() > 0)
-  {
-    (code + ",0").toCharArray(ir, 1024);
+//   if (code.length() > 0)
+//   {
+//     (code + ",0").toCharArray(ir, 1024);
 
-    char *p; //Zeiger im Array
-    unsigned int frequence = strtol(ir, &p, 10);
-    p++; //Komma im String wird übersprungen
-    unsigned int pulses = strtol(p, &p, 10);
+//     char *p; //Zeiger im Array
+//     unsigned int frequence = strtol(ir, &p, 10);
+//     p++; //Komma im String wird übersprungen
+//     unsigned int pulses = strtol(p, &p, 10);
 
-    bool burst = true; //wir beginnen mit IR Licht
+//     bool burst = true; //wir beginnen mit IR Licht
 
-    unsigned int startTicks;
-    unsigned int halfPeriodTicks = 40000000 / frequence;
-    while (pulses != 0)
-    {
-      RSR_CCOUNT(startTicks);
-      for (unsigned int i = 0; i < pulses * 2; i++)
-      {
-        if (IR_PORT_INVERT)
-          digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? LOW : HIGH);
-        else
-          digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? HIGH : LOW);
-        while (get_ccount() < startTicks + i * halfPeriodTicks)
-        {
-        } //Warten
-      }
-      burst = !burst;
-      p++; //Komma im String wird übersprungen
-      pulses = strtol(p, &p, 10);
-    }
-    digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW); //Am Ende IR immer AUS
-  }
-  else
-  {
-    Serial.println("Unknown Code Length");
-    return;
-  }
-  Serial.println("IrCode send");
-}
+//     unsigned int startTicks;
+//     unsigned int halfPeriodTicks = 40000000 / frequence;
+//     while (pulses != 0)
+//     {
+//       RSR_CCOUNT(startTicks);
+//       for (unsigned int i = 0; i < pulses * 2; i++)
+//       {
+//         if (IR_PORT_INVERT)
+//           digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? LOW : HIGH);
+//         else
+//           digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? HIGH : LOW);
+//         while (get_ccount() < startTicks + i * halfPeriodTicks)
+//         {
+//         } //Warten
+//       }
+//       burst = !burst;
+//       p++; //Komma im String wird übersprungen
+//       pulses = strtol(p, &p, 10);
+//     }
+//     digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW); //Am Ende IR immer AUS
+//   }
+//   else
+//   {
+//     Serial.println("Unknown Code Length");
+//     return;
+//   }
+//   Serial.println("IrCode send");
+// }
 
-#pragma endregion
+// #pragma endregion
 
 // #pragma region handleReceiveIr
 // /*

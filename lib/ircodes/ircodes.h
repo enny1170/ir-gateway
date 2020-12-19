@@ -160,6 +160,7 @@ void receive_ir_nonblock(bool fromLoop=false)
 /**************************************************************************************************************************************************************************
  * IRCode Handler without HTTP Server
  * is used by CMD-Site and MQTT but blocking
+ * So you have to add the code to the queue and send it on next loop
 ***************************************************************************************************************************************************************************/
 void handleIrCode(String code)
 {
@@ -230,6 +231,7 @@ void sendIrCodeFromQueue()
     {
         String tmpCode;
         irSendQueue.pull(&tmpCode);
+        Serial.printf("Send IR-Code from Queue: %s\n",tmpCode.c_str());
         handleIrCode(tmpCode);
     }
 }
@@ -502,7 +504,60 @@ String buildCmdPage()
             retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
             retval += dir.fileName().substring(0,pointPos);
             retval += F("' name='button'");
-            retval += F("/></div></div>");
+            retval += F("/>");
+            retval += "<a href='editcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp<i class='fa fa-edit'></i></a>";
+            retval += "<a href='delcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp<i class='fa fa-trash'></i></a>";
+            retval += "</div></div>";
+        }
+    }
+    retval +=F("</form>");
+#else
+    File dir = SPIFFS.open("/");
+    File file=dir.openNextFile();
+    while(file)
+    {
+        String fileName=String(file.name());
+        if(fileName.endsWith(".cmd"))
+        {
+            int pointPos=dir.fileName().indexOf('.');
+            retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
+            retval += dir.fileName().substring(0,pointPos);
+            retval += F("' name='button'");
+            retval += F("/>");
+            retval += "<a href='editcmd?cmd="+dir.fileName().substring(0,pointPos)+"'><i class='fa fa-edit'></i></a>";
+            retval += "<a href='delcmd?cmd="+dir.fileName().substring(0,pointPos)+"'><i class='fa fa-trash'></i></a>";
+            retval += "</div></div>";
+        }
+        file=dir.openNextFile();
+    }
+    retval +=F("</form>");
+#endif
+
+    return retval;
+
+}
+
+/***********************************************************************************************************************************
+ *  Build a HTML Form for editing a CMD
+ * *********************************************************************************************************************************/
+String buildCmdEditPage()
+{
+    String retval="";
+    Serial.println("buildCmdPage");
+    retval += F("<form method='GET' action='cmd' >");
+    //"</form>");
+#if defined ESP8266 && filesystem == littlefs
+    Dir dir = LittleFS.openDir("/");
+    while(dir.next())
+    {
+        if(dir.isFile() && dir.fileName().endsWith(".cmd"))
+        {
+            int pointPos=dir.fileName().indexOf('.');
+            retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
+            retval += dir.fileName().substring(0,pointPos);
+            retval += F("' name='button'");
+            retval += F("/></div>");
+            retval += "<a href='editcmd?cmd="+dir.fileName().substring(0,pointPos)+"'><i class='fa fa-edit'></i></a></div>";
         }
     }
     retval +=F("</form>");
@@ -528,5 +583,6 @@ String buildCmdPage()
     return retval;
 
 }
+
 
 #endif
