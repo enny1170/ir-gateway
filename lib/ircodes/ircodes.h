@@ -540,48 +540,57 @@ String buildCmdPage()
 /***********************************************************************************************************************************
  *  Build a HTML Form for editing a CMD
  * *********************************************************************************************************************************/
-String buildCmdEditPage()
+String buildCmdEditPage(String cmd)
 {
     String retval="";
-    Serial.println("buildCmdPage");
-    retval += F("<form method='GET' action='cmd' >");
-    //"</form>");
-#if defined ESP8266 && filesystem == littlefs
-    Dir dir = LittleFS.openDir("/");
-    while(dir.next())
-    {
-        if(dir.isFile() && dir.fileName().endsWith(".cmd"))
-        {
-            int pointPos=dir.fileName().indexOf('.');
-            retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
-            retval += dir.fileName().substring(0,pointPos);
-            retval += F("' name='button'");
-            retval += F("/></div>");
-            retval += "<a href='editcmd?cmd="+dir.fileName().substring(0,pointPos)+"'><i class='fa fa-edit'></i></a></div>";
-        }
-    }
-    retval +=F("</form>");
-#else
-    File dir = SPIFFS.open("/");
-    File file=dir.openNextFile();
-    while(file)
-    {
-        String fileName=String(file.name());
-        if(fileName.endsWith(".cmd"))
-        {
-            int pointPos=fileName.indexOf('.');
-            retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
-            retval += dir.fileName().substring(0,pointPos);
-            retval += F("' name='button'");
-            retval += F("/></div></div>");
-        }
-        file=dir.openNextFile();
-    }
-    retval +=F("</form>");
-#endif
-
+    IRcode tmpCode=readIrCmd(cmd);
+    Serial.println("buildCmdEditPage");
+    retval += F("<form method='Post' action='/cmd' >");
+    retval += "<input type='hidden' name='orgname' value='"+tmpCode.Cmd+"' />";
+    retval += "<div class='field'><div class='label'>CMD-Name*:</div><div class='control'><input class='input' type='text' name='cmdname' value='"+tmpCode.Cmd+"'></div></div>";
+    retval += "<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value='"+tmpCode.Description+"'></div></div>";
+    retval += "<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value='"+tmpCode.Code+"'></div></div>";
+    retval += "<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/>&nbsp<a href='delcmd?cmd="+tmpCode.Cmd+"'><i class='fa fa-trash'></i></a></div></div></form>";
     return retval;
+}
 
+/**********************************************************************************************************************************
+ *  Delete CMD-File from Flash Storage
+ * ********************************************************************************************************************************/
+void deleteCmd(String cmd)
+{
+    Serial.printf("Delete IrCmd for '%s'\n.",cmd.c_str());
+    if (!cmd.endsWith(".cmd"))
+    {
+        // Commandname given
+#if defined ESP8266 && filesystem == littlefs
+        String cmdFilename="/" + cmd + ".cmd";
+        Serial.printf("Generated Filename:%s\n",cmdFilename.c_str());
+        if (LittleFS.exists(cmdFilename.c_str()))
+        {
+            LittleFS.remove(cmdFilename.c_str());
+        }
+#else
+        if (SPIFFS.exists(String("/" + cmd + ".cmd").c_str()))
+        {
+            SPIFFS.remove.open("/" + cmd + ".cmd");
+        }
+#endif
+    }
+    else
+    {
+#if defined ESP8266 && filesystem == littlefs
+        if (LittleFS.exists(cmd.c_str()))
+        {
+            LittleFS.remove(cmd.c_str());
+        }
+#else
+        if (SPIFFS.exists(cmd))
+        {
+            SPIFFS.remove(cmd);
+        }
+#endif
+    }
 }
 
 

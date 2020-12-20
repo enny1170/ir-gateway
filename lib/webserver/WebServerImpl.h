@@ -310,6 +310,7 @@ void configureWebServer()
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='code' value='%s'></div></div>","Code",irCode.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='cmdname' value='%s'></div></div>","Save as CMD-Name",irCommand.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='cmddescription' value='%s'></div></div>","Description","");
+        response->print("<input class='input' type='hidden' name='orgname' value='' />");
         response->print("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save as CMD'/></div></div></form>");
     }
     response->print(F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back</a></div></div>"));
@@ -413,10 +414,16 @@ void configureWebServer()
   request->redirect("/cmds");
   });
 
-  //Save a new Cmd with values by Post Request
+  /***************************************************************************************************
+   * Save a Cmd with values by Post Request
+   * if Param oldname!=cmdname we try to delte oldname and save with cmdname
+   * *************************************************************************************************/
   server.on("/cmd",HTTP_POST,[](AsyncWebServerRequest *request){
     int params= request->params();
-    IRcode tmpCode;
+    String pCode;
+    String pCmdName;
+    String pCmdDescription;
+    String pOrgName;
     Serial.println("/cmd Post-Parameters");
     for(int i=0;i<params;i++){
       AsyncWebParameter* p = request->getParam(i);
@@ -427,35 +434,94 @@ void configureWebServer()
       else if(p->isPost())
       {
         Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
-        if(p->name()=="code")
-        {
-          tmpCode.Code=p->value();
-        }
-        else if(p->name()=="cmddescription")
-        {
-          tmpCode.Description=p->value();
-        }
-        else if (p->name()=="cmdname")
-        {
-          tmpCode.Cmd=p->value();
-        }
       } 
       else 
       {
         Serial.printf("GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
       }
     } // for(int i=0;i<params;i++)
-    writeIrCmd(tmpCode);
-    request->redirect("/cmds");
+
+    if (request->hasParam("cmdname",true,false) && request->hasParam("cmddescription",true,false) && request->hasParam("code",true,false) && request->hasParam("orgname",true,false))
+    {
+      Serial.println("Save Cmd Values found");
+      pCode = request->getParam("code",true)->value();
+      pCmdName=request->getParam("cmdname",true)->value();
+      pCmdDescription=request->getParam("cmddescription",true)->value();
+      pOrgName=request->getParam("orgname",true)->value();
+      if(pOrgName!=pCmdName)
+      {
+        deleteCmd(pOrgName);
+      }
+      IRcode tmpCode=IRcode(pCmdName,pCmdDescription,pCode);
+      writeIrCmd(tmpCode);
+      request->redirect("/cmds");
+    }
+    else
+    {
+      //Values missing
+      Serial.println("Save Cmd missing values");
+      AsyncResponseStream *response=request->beginResponseStream("text/html");
+      response->print(getHtmlPrefix());
+      response->print("<form method='Post' action='/cmd'>");
+      response->print("<div class='field'><div class='label'>CMD-Name and Code must be filled</div></div>");
+      if(request->hasParam("cmdName"))
+      {
+        response->print("<div class='field'><div class='label'>CMD-Name*:</div><div class='control'><input class='input' type='text' name='cmdname' value='"+request->getParam("cmdname")->value()+"'></div></div>");
+        response->print("<input class='input' type='hidden' name='orgname' value='"+request->getParam("cmdname")->value()+"'>");
+      }
+      else
+      {
+        response->print("<div class='field'><div class='label'>CMD-Name*:</div><div class='control'><input class='input' type='text' name='cmdname' value=''></div></div>");
+        response->print("<input class='input' type='hidden' name='orgname' value=''>");
+      }
+      if(request->hasParam("cmddescription"))
+      {
+        response->print("<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value='"+request->getParam("cmddescription")->value()+"'></div></div>");
+      }
+      else
+      {
+        response->print("<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value=''></div></div>");
+      }
+      if(request->hasParam("code"))
+      {
+        response->print("<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value='"+request->getParam("code")->value()+"'></div></div>");
+      }
+      else
+      {
+        response->print("<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value=''></div></div>");
+      }
+      response->print("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>");
+      response->print(getHtmlSuffix());
+      request->send(response);
+    }
   });
 
   // Edit Command
   server.on("/editcmd",HTTP_GET,[](AsyncWebServerRequest *request){
-    AsyncResponseStream *response=request->beginResponseStream("text/html");
-    response->print(getHtmlPrefix());
-    response->print(buildCmdEditPage());
-    response->print(getHtmlSuffix());
-    request->send(response);
+    String qcmd;
+    if (request->hasParam("cmd"))
+    {
+      qcmd = request->getParam("cmd")->value();
+      AsyncResponseStream *response=request->beginResponseStream("text/html");
+      response->print(getHtmlPrefix());
+      response->print(buildCmdEditPage(qcmd));
+      response->print(getHtmlSuffix());
+      request->send(response);
+    }
+    else
+    {
+      request->redirect("/cmds");
+    }
+  });
+
+  server.on("/delcmd",HTTP_GET,[](AsyncWebServerRequest *request){
+    String qcmd;
+    if (request->hasParam("cmd"))
+    {
+      qcmd = request->getParam("cmd")->value();
+      deleteCmd(qcmd);
+    }
+    request->redirect("/cmds");
   });
 
 /*****************************************************************************************************
