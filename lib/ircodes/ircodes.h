@@ -24,6 +24,7 @@
 
 #define IRCODE_SIZE 309
 #define IRCODE_FILE_NAME "/ircodes.json"
+#define IRCODE_FILE_EXTENSION ".jcmd"
 #define	IMPLEMENTATION	FIFO
 
 #ifndef OFFSET_START
@@ -218,7 +219,7 @@ void addIrCodeToQueue(String code)
     }
     else
     {
-        Serial.println("Overfow for irSendQueue detected.");
+        Serial.println("Overflow for irSendQueue detected.");
     }
 }
 
@@ -279,9 +280,9 @@ void writeIrCmd(String cmd,String description,String code)
   StaticJsonDocument<capacity> doc;
 
 #if defined ESP8266 && filesystem == littlefs
-  irCodeFile=LittleFS.open("/"+cmd+".cmd","w");
+  irCodeFile=LittleFS.open("/"+cmd+IRCODE_FILE_EXTENSION,"w");
 #else
-  irCodeFile=SPIFFS.open("/"+cmd+"cmd","w");
+  irCodeFile=SPIFFS.open("/"+cmd+IRCODE_FILE_EXTENSION,"w");
 #endif
 
   doc["cmd"]=cmd;
@@ -303,7 +304,7 @@ void writeIrCmd(IRcode ircode)
   StaticJsonDocument<capacity> doc;
 
 #if defined ESP8266 && filesystem == littlefs
-  irCodeFile=LittleFS.open("/"+ircode.Cmd+".cmd","w");
+  irCodeFile=LittleFS.open("/"+ircode.Cmd+IRCODE_FILE_EXTENSION,"w");
 #else
   irCodeFile=SPIFFS.open("/"+ircode.Cmd+"cmd","w");
 #endif
@@ -327,11 +328,11 @@ IRcode readIrCmd(String cmd)
     const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
     StaticJsonDocument<capacity> doc;
     Serial.printf("Get IrCmd for '%s'\n.",cmd.c_str());
-    if (!cmd.endsWith(".cmd"))
+    if (!cmd.endsWith(IRCODE_FILE_EXTENSION))
     {
         // Commandname given
 #if defined ESP8266 && filesystem == littlefs
-        String cmdFilename="/" + cmd + ".cmd";
+        String cmdFilename="/" + cmd + IRCODE_FILE_EXTENSION;
         Serial.printf("Generated Filename:%s\n",cmdFilename.c_str());
         if (LittleFS.exists(cmdFilename.c_str()))
         {
@@ -345,9 +346,9 @@ IRcode readIrCmd(String cmd)
         }
 
 #else
-        if (SPIFFS.exists(String("/" + cmd + ".cmd").c_str()))
+        if (SPIFFS.exists(String("/" + cmd + IRCODE_FILE_EXTENSION).c_str()))
         {
-            irCodeFile = SPIFFS.open("/" + cmd + ".cmd", "r");
+            irCodeFile = SPIFFS.open("/" + cmd + IRCODE_FILE_EXTENSION, "r");
         }
         else
         {
@@ -416,7 +417,7 @@ String listCmds()
     Dir dir = LittleFS.openDir("/");
     while(dir.next())
     {
-        if(dir.isFile() && dir.fileName().endsWith(".cmd"))
+        if(dir.isFile() && dir.fileName().endsWith(IRCODE_FILE_EXTENSION))
         {
             int pointPos=dir.fileName().indexOf('.');
             retval += dir.fileName();
@@ -431,7 +432,7 @@ String listCmds()
     while(file)
     {
         String fileName=String(file.name());
-        if(fileName.endsWith(".cmd"))
+        if(fileName.endsWith(IRCODE_FILE_EXTENSION))
         {
             int pointPos=fileName.indexOf('.');
             retval += fileName;
@@ -459,7 +460,7 @@ String getCmds()
     Dir dir = LittleFS.openDir("/");
     while(dir.next())
     {
-        if(dir.isFile() && dir.fileName().endsWith(".cmd"))
+        if(dir.isFile() && dir.fileName().endsWith(IRCODE_FILE_EXTENSION))
         {
             int pointPos=dir.fileName().indexOf('.');
             retval += dir.fileName().substring(1,pointPos);
@@ -472,7 +473,7 @@ String getCmds()
     while(file)
     {
         String fileName=String(file.name());
-        if(fileName.endsWith(".cmd"))
+        if(fileName.endsWith(IRCODE_FILE_EXTENSION))
         {
             int pointPos=fileName.indexOf('.');
             retval += fileName.substring(1,pointPos);
@@ -498,7 +499,7 @@ String buildCmdPage()
     Dir dir = LittleFS.openDir("/");
     while(dir.next())
     {
-        if(dir.isFile() && dir.fileName().endsWith(".cmd"))
+        if(dir.isFile() && dir.fileName().endsWith(IRCODE_FILE_EXTENSION))
         {
             int pointPos=dir.fileName().indexOf('.');
             retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
@@ -506,6 +507,7 @@ String buildCmdPage()
             retval += F("' name='button'");
             retval += F("/>");
             retval += "<a href='editcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp<i class='fa fa-edit'></i></a>";
+            retval += "<a href='downloadcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp<i class='fa fa-download'></i></a>";
             retval += "<a href='delcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp<i class='fa fa-trash'></i></a>";
             retval += "</div></div>";
         }
@@ -517,7 +519,7 @@ String buildCmdPage()
     while(file)
     {
         String fileName=String(file.name());
-        if(fileName.endsWith(".cmd"))
+        if(fileName.endsWith(IRCODE_FILE_EXTENSION))
         {
             int pointPos=dir.fileName().indexOf('.');
             retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
@@ -560,20 +562,20 @@ String buildCmdEditPage(String cmd)
 void deleteCmd(String cmd)
 {
     Serial.printf("Delete IrCmd for '%s'\n.",cmd.c_str());
-    if (!cmd.endsWith(".cmd"))
+    if (!cmd.endsWith(IRCODE_FILE_EXTENSION))
     {
         // Commandname given
 #if defined ESP8266 && filesystem == littlefs
-        String cmdFilename="/" + cmd + ".cmd";
+        String cmdFilename="/" + cmd + IRCODE_FILE_EXTENSION;
         Serial.printf("Generated Filename:%s\n",cmdFilename.c_str());
         if (LittleFS.exists(cmdFilename.c_str()))
         {
             LittleFS.remove(cmdFilename.c_str());
         }
 #else
-        if (SPIFFS.exists(String("/" + cmd + ".cmd").c_str()))
+        if (SPIFFS.exists(String("/" + cmd + IRCODE_FILE_EXTENSION).c_str()))
         {
-            SPIFFS.remove.open("/" + cmd + ".cmd");
+            SPIFFS.remove.open("/" + cmd + IRCODE_FILE_EXTENSION);
         }
 #endif
     }
@@ -593,5 +595,43 @@ void deleteCmd(String cmd)
     }
 }
 
+String getCmdFileName(String cmd)
+{
+    String retVal;
+    String cmdFilename;
+    if (!cmd.endsWith(IRCODE_FILE_EXTENSION))
+    {
+        // Commandname given
+#if defined ESP8266 && filesystem == littlefs
+        cmdFilename="/" + cmd + IRCODE_FILE_EXTENSION;
+        Serial.printf("Generated Filename:%s\n",cmdFilename.c_str());
+        if (LittleFS.exists(cmdFilename.c_str()))
+        {
+            retVal=cmdFilename;
+        }
+#else
+        if (SPIFFS.exists(cmdFilename).c_str()))
+        {
+            retVal=cmdFilename;;
+        }
+#endif
+    }
+    else
+    {
+#if defined ESP8266 && filesystem == littlefs
+        cmdFilename="/"+cmd;
+        if (LittleFS.exists(cmdFilename.c_str()))
+        {
+            retVal=cmdFilename;
+        }
+#else
+        if (SPIFFS.exists(cmdFilename))
+        {
+            retVal=cmdFilename;
+        }
+#endif
+    }
+    return retVal;
+}
 
 #endif
