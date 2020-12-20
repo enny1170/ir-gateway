@@ -496,7 +496,9 @@ void configureWebServer()
     }
   });
 
-  // Edit Command
+  /***********************************************************************************************************************************************
+   * Edit Command
+   * *********************************************************************************************************************************************/
   server.on("/editcmd",HTTP_GET,[](AsyncWebServerRequest *request){
     String qcmd;
     if (request->hasParam("cmd"))
@@ -514,6 +516,9 @@ void configureWebServer()
     }
   });
 
+  /**************************************************************************************************************************************************
+   * Delete Command
+   * ************************************************************************************************************************************************/
   server.on("/delcmd",HTTP_GET,[](AsyncWebServerRequest *request){
     String qcmd;
     if (request->hasParam("cmd"))
@@ -522,6 +527,61 @@ void configureWebServer()
       deleteCmd(qcmd);
     }
     request->redirect("/cmds");
+  });
+
+  /**************************************************************************************************************************************************
+   * Download Cmd-File
+   * ************************************************************************************************************************************************/
+  server.on("/downloadcmd",HTTP_GET,[](AsyncWebServerRequest *request){
+    String qcmd;
+    String cmdFileName;
+    String fileContent;
+    File cmdFile;
+    if (request->hasParam("cmd"))
+    {
+      qcmd = request->getParam("cmd")->value();
+      cmdFileName=getCmdFileName(qcmd);
+      if(cmdFileName.length()>1)
+      {
+        Serial.print("Download Cmd for ");
+        Serial.println(cmdFileName);
+#if defined ESP8266 && filesystem == littlefs
+        if (LittleFS.exists(cmdFileName.c_str()))
+        {
+            cmdFile=LittleFS.open(cmdFileName.c_str(), "r");
+            fileContent=cmdFile.readString();
+            cmdFile.close();
+        }
+#else
+        if (SPIFFS.exists(cmdFilename))
+        {
+            cmdFile=SPIFFS.open(cmdFileName.c_str(), "r");
+            fileContent=cmdFile.readString();
+            cmdFile.close();
+        }
+#endif
+
+        AsyncWebServerResponse *response = request->beginResponse(200,"application/json",fileContent);
+        response->addHeader("Content-Disposition","attachment; filename=\""+cmdFileName.substring(1)+"\"");
+        request->send(response);
+      }
+      else
+      {
+        Serial.print("CMD-File not found for ");
+        Serial.println(qcmd);
+        AsyncResponseStream *response=request->beginResponseStream("text/plain");
+        response->print("CMD-File Not Found\n\n");
+        response->printf("URI: %s\n",request->url().c_str());
+        response->printf("Method: %s\n",request->methodToString());
+        response->printf("Arguments: %i\n",request->args());
+        for (size_t i = 0; i < request->args(); i++)
+        {
+          response->printf(" %s: %s\n",request->argName(i).c_str(),request->arg(i).c_str());
+        }
+        response->setCode(404);
+        request->send(response);
+      }
+    }
   });
 
 /*****************************************************************************************************
