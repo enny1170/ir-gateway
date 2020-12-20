@@ -68,6 +68,41 @@ String getHtmlSuffix()
     return F("</div></div></section></body></html>");
 }
 
+/****************************************************************************************************************************
+ * Handle File Upload
+ * **************************************************************************************************************************/
+
+void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+  String logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url();
+  Serial.println(logmessage);
+
+  if (!index) {
+    logmessage = "Upload Start: " + String(filename);
+    // open the file on first call and store the file handle in the request object
+#if defined ESP8266 && filesystem == littlefs
+    request->_tempFile = LittleFS.open("/" + filename, "w");
+#else
+    request->_tempFile = SPIFFS.open("/" + filename, "w");
+#endif
+    Serial.println(logmessage);
+  }
+
+  if (len) {
+    // stream the incoming chunk to the opened file
+    request->_tempFile.write(data, len);
+    logmessage = "Writing file: " + String(filename) + " index=" + String(index) + " len=" + String(len);
+    Serial.println(logmessage);
+  }
+
+  if (final) {
+    logmessage = "Upload Complete: " + String(filename) + ",size: " + String(index + len);
+    // close the file handle as the upload is now done
+    request->_tempFile.close();
+    Serial.println(logmessage);
+    request->redirect("/cmds");
+  }
+}
+
 /*
    Diese Webseite wird angezeigt, wenn eine unbekannte URL abgerufen wird.
 */
@@ -583,6 +618,24 @@ void configureWebServer()
       }
     }
   });
+
+  /***********************************************************************************************************************************************
+   * Upload CMD-File
+   * *********************************************************************************************************************************************/
+  server.on("/uploadcmd",HTTP_GET,[](AsyncWebServerRequest *request){
+    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    response->print(getHtmlPrefix());
+    response->print("<form method='Post' action='/uploadcmd' enctype='multipart/form-data'>");
+    response->print("<div class='field'><div class='label'>Upload a .jcmd File to Device</div></div>");
+    response->print("<div class='field'><div class='label'>CMD-File:</div><div class='file'><input type='file' name='data' multiple></div></div>");
+    response->print("<div class='field'><div class='buttons'><input class='button' type='submit' value='Upload'/></div></div></form>");
+    response->print(getHtmlSuffix());
+    request->send(response);
+  });
+  
+  server.on("/uploadcmd",HTTP_POST,[](AsyncWebServerRequest *request){
+    request->send(200,"text/plain","Data send");
+      }, handleUpload);
 
 /*****************************************************************************************************
  * Handle //deletepass
