@@ -492,6 +492,7 @@ String getCmds()
 String buildCmdPage()
 {
     String retval="";
+    int count=0;
     Serial.println("buildCmdPage");
     retval += F("<form method='GET' action='cmd' >");
     //"</form>");
@@ -510,6 +511,7 @@ String buildCmdPage()
             retval += "<a href='downloadcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp<i class='fa fa-download'></i></a>";
             retval += "<a href='delcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp<i class='fa fa-trash'></i></a>";
             retval += "</div></div>";
+            count ++;
         }
     }
     retval +=F("</form>");
@@ -529,11 +531,14 @@ String buildCmdPage()
             retval += "<a href='editcmd?cmd="+dir.fileName().substring(0,pointPos)+"'><i class='fa fa-edit'></i></a>";
             retval += "<a href='delcmd?cmd="+dir.fileName().substring(0,pointPos)+"'><i class='fa fa-trash'></i></a>";
             retval += "</div></div>";
+            count ++;
         }
         file=dir.openNextFile();
     }
     retval +=F("</form>");
 #endif
+    retval +="<div class='field'><div class='label'>"+String(count)+"&nbsp CMD's found on device.</div></div>";
+    retval +="<div class='field'><div class='buttons'><a class='button is-warning' href='/uploadcmd'>Upload CMD to Device</a></div></div>";
 
     return retval;
 
