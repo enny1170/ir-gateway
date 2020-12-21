@@ -104,23 +104,6 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
 }
 
 /*
-   Diese Webseite wird angezeigt, wenn eine unbekannte URL abgerufen wird.
-*/
-void notFound(AsyncWebServerRequest *request) {
-  AsyncResponseStream *response=request->beginResponseStream("text/plain");
-  response->print("File Not Found\n\n");
-  response->printf("URI: %s\n",request->url().c_str());
-  response->printf("Method: %s\n",request->methodToString());
-  response->printf("Arguments: %i\n",request->args());
-  for (size_t i = 0; i < request->args(); i++)
-  {
-    response->printf(" %s: %s\n",request->argName(i).c_str(),request->arg(i).c_str());
-  }
-    response->setCode(404);
-    request->send(response);
-}
-
-/*
    Zeigt Informationen zur HTTP-Anfrage im Serial-Monitor an
 */
 void serial_print_HttpInfo(AsyncWebServerRequest *request)
@@ -139,6 +122,26 @@ void serial_print_HttpInfo(AsyncWebServerRequest *request)
   }
   Serial.println(message);
 }
+
+/*
+   Diese Webseite wird angezeigt, wenn eine unbekannte URL abgerufen wird.
+*/
+void notFound(AsyncWebServerRequest *request) {
+  Serial.println("\nURI not found");
+  serial_print_HttpInfo(request);
+  AsyncResponseStream *response=request->beginResponseStream("text/plain");
+  response->print("File Not Found\n\n");
+  response->printf("URI: %s\n",request->url().c_str());
+  response->printf("Method: %s\n",request->methodToString());
+  response->printf("Arguments: %i\n",request->args());
+  for (size_t i = 0; i < request->args(); i++)
+  {
+    response->printf(" %s: %s\n",request->argName(i).c_str(),request->arg(i).c_str());
+  }
+    response->setCode(404);
+    request->send(response);
+}
+
 
 /*
    setzt den ESP zurück, damit er sich neu verbindet (nur im AP- und AP_STA-Modus)
@@ -236,21 +239,20 @@ void configureWebServer()
  * Handle /ir?code=<message>
  * ***************************************************************************************************/
 
-  // Send a GET request to <IP>/ir?code=<message>
-  server.on("/ir", HTTP_GET, [](AsyncWebServerRequest *request) {
+  // Send a Post request to <IP>/ir?code=<message>
+  server.on("/ir", HTTP_POST, [](AsyncWebServerRequest *request) {
     String message;
-    if (request->hasParam("code"))
+    if (request->argName(0).equals("code"))
     {
-      message = request->getParam("code")->value();
+      message = request->arg("code");
       //handleIrCode(message);
       addIrCodeToQueue(message);
-      message="OK";
-      request->send(200, "text/plain", message);
+      request->send(200, "text/plain", "OK");
     }
     else
     {
       message += " Code not send";
-      request->send(500, "text/plain", "IrResult: " + message);
+      request->send(404, "text/plain", "IrResult: " + message);
     }
   });
 
@@ -445,7 +447,8 @@ void configureWebServer()
     cmd=request->getParam("button")->value();
   }
   IRcode code = readIrCmd(cmd);
-  handleIrCode(code.Code);
+  addIrCodeToQueue(code.Code);
+  //handleIrCode(code.Code);
   request->redirect("/cmds");
   });
 

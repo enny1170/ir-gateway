@@ -60,10 +60,21 @@ bool irReceiveFinished=false;
 unsigned long receiverStart=0;
 
 typedef struct strRec {
-	char data[256];
+	char data[1024];
+    strRec()
+    {}
+    strRec(String input)
+    {
+        input.toCharArray(data,1024,0);
+    }
+    String toString()
+    {
+        return String(data);
+    }
 } Rec;
+
 //Create Que for Strings with max 5 Entrys
-cppQueue irSendQueue (sizeof(String), 5, IMPLEMENTATION);
+cppQueue irSendQueue (sizeof(Rec), 5, IMPLEMENTATION);
 
 /*
    Gibt die CPU Takte zurück, die seit dem Neustart vergangen sind.
@@ -215,7 +226,10 @@ void addIrCodeToQueue(String code)
 {
     if(!irSendQueue.isFull())
     {
-        irSendQueue.push(&code);
+        Rec newRec(code);
+        irSendQueue.push(&newRec);
+        Serial.print("Add Code to Queue: ");
+        Serial.println(newRec.toString());
     }
     else
     {
@@ -228,12 +242,22 @@ void addIrCodeToQueue(String code)
  * *****************************************************************************************************************************************************************/
 void sendIrCodeFromQueue()
 {
+   
     if(!irSendQueue.isEmpty())
     {
-        String tmpCode;
-        irSendQueue.pull(&tmpCode);
-        Serial.printf("Send IR-Code from Queue: %s\n",tmpCode.c_str());
-        handleIrCode(tmpCode);
+        Rec tmpCode;
+        //String tmpCode;
+        irSendQueue.pop(&tmpCode);
+        Serial.printf("Send IR-Code from Queue: %s\n",tmpCode.toString().c_str());
+        if (tmpCode.toString().length()>100)
+        {
+            handleIrCode(tmpCode.toString());
+        }
+        else
+        {
+            Serial.println("Do not Send IR-Code, code is to short");
+        }
+        
     }
 }
 
