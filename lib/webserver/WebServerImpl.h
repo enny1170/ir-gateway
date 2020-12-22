@@ -591,7 +591,7 @@ void configureWebServer()
             cmdFile.close();
         }
 #else
-        if (SPIFFS.exists(cmdFilename))
+        if (SPIFFS.exists(cmdFileName))
         {
             cmdFile=SPIFFS.open(cmdFileName.c_str(), "r");
             fileContent=cmdFile.readString();

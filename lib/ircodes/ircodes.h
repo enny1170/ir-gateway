@@ -547,13 +547,13 @@ String buildCmdPage()
         String fileName=String(file.name());
         if(fileName.endsWith(IRCODE_FILE_EXTENSION))
         {
-            int pointPos=dir.fileName().indexOf('.');
+            int pointPos=fileName.indexOf('.');
             retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
-            retval += dir.fileName().substring(0,pointPos);
+            retval += fileName.substring(1,pointPos);
             retval += F("' name='button'");
             retval += F("/>");
-            retval += "<a href='editcmd?cmd="+dir.fileName().substring(0,pointPos)+"'><i class='fa fa-edit'></i></a>";
-            retval += "<a href='delcmd?cmd="+dir.fileName().substring(0,pointPos)+"'><i class='fa fa-trash'></i></a>";
+            retval += "<a href='editcmd?cmd="+fileName.substring(1,pointPos)+"'><i class='fa fa-edit'></i></a>";
+            retval += "<a href='delcmd?cmd="+fileName.substring(1,pointPos)+"'><i class='fa fa-trash'></i></a>";
             retval += "</div></div>";
             count ++;
         }
@@ -604,7 +604,7 @@ void deleteCmd(String cmd)
 #else
         if (SPIFFS.exists(String("/" + cmd + IRCODE_FILE_EXTENSION).c_str()))
         {
-            SPIFFS.remove.open("/" + cmd + IRCODE_FILE_EXTENSION);
+            SPIFFS.remove("/" + cmd + IRCODE_FILE_EXTENSION);
         }
 #endif
     }
@@ -639,9 +639,9 @@ String getCmdFileName(String cmd)
             retVal=cmdFilename;
         }
 #else
-        if (SPIFFS.exists(cmdFilename).c_str()))
+        if (SPIFFS.exists(cmdFilename))
         {
-            retVal=cmdFilename;;
+            retVal=cmdFilename;
         }
 #endif
     }

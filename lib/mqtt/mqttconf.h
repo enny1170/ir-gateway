@@ -29,10 +29,9 @@ String mqttPrefix=getESPDevName();
 String mqttUser="";
 String mqttPass="";
 
-/*
-  Config File Helper Functions
-*/
-
+/**********************************************************************************************************
+ * Config File Helper Functions
+***********************************************************************************************************/
 void writeMqttConfig(String server=".",String port="1883",String prefix=getESPDevName(),String user="",String pass="")
 {
   const int capacity = JSON_OBJECT_SIZE(MQTT_SIZE);
@@ -66,6 +65,9 @@ void writeMqttConfig(String server=".",String port="1883",String prefix=getESPDe
   mqttFile.close();
 }
 
+/*************************************************************************************************************************
+ * Read MQTT Config from File
+ * ***********************************************************************************************************************/
 void readMqttConfig()
 {
   const int capacity = JSON_OBJECT_SIZE(MQTT_SIZE);
@@ -95,6 +97,9 @@ void readMqttConfig()
   }
 }
 
+/*********************************************************************************************************************
+ * Check Mqtt Config File exists
+ * *******************************************************************************************************************/
 void checkMqttConfig()
 {
   //check Config File is exists, or create one

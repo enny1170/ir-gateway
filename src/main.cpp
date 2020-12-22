@@ -27,256 +27,17 @@ const char *ssidAP = "ESP8266 for RCoid Access Point";
 const char *passwordAP = "passpass"; //Muss mindestens 8 Zeichen haben
 
 
-#pragma region OldIrCodeHandler
-/*
-   sendet ein RCoid-IR-Signal
-   z.B.:
-   http://ip.for.your.device/ir?code=38000,342,171,21,21,21,21,21,21,21,64,21,21,21,21,21,64,21,21,21,21,21,21,21,64,21,64,21,21,21,64,21,21,21,21,21,21,21,64,21,64,21,21,21,21,21,64,21,64,21,64,21,64,21,21,21,21,21,64,21,64,21,21,21,21,21,21,21,1
-*/
-// void handleIr()
-// {
-//   serial_print_HttpInfo();
-
-//   pinMode(IR_PORT, OUTPUT);
-
-//   if (server.argName(0).equals("code"))
-//   {
-//     (server.arg(0) + ",0").toCharArray(ir, 1024);
-
-//     char *p; //Zeiger im Array
-//     unsigned int frequence = strtol(ir, &p, 10);
-//     p++; //Komma im String wird übersprungen
-//     unsigned int pulses = strtol(p, &p, 10);
-
-//     bool burst = true; //wir beginnen mit IR Licht
-
-//     unsigned int startTicks;
-//     unsigned int halfPeriodTicks = 40000000 / frequence;
-//     while (pulses != 0)
-//     {
-//       RSR_CCOUNT(startTicks);
-//       for (unsigned int i = 0 ; i < pulses * 2; i++)
-//       {
-//         if (IR_PORT_INVERT)
-//           digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? LOW : HIGH);
-//         else
-//           digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? HIGH : LOW);
-//         while (get_ccount() < startTicks + i * halfPeriodTicks) {} //Warten
-//       }
-//       burst = !burst;
-//       p++; //Komma im String wird übersprungen
-//       pulses = strtol(p, &p, 10);
-//     }
-//     digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW); //Am Ende IR immer AUS
-
-//   }
-//   else
-//   {
-//     handleNotFound();
-//     return;
-//   }
-//   htmlcontent = "OK";
-//   server.send(200, "text/plain", htmlcontent);
-// }
-
-#pragma endregion
-
-// #pragma region handleIrCode
-// /*
-//   IRCode Handler without HTTP Server
-//   is used by CMD-Site and MQTT
-// */
-// void handleIrCode(String code)
-// {
-
-//   pinMode(IR_PORT, OUTPUT);
-
-//   if (code.length() > 0)
-//   {
-//     (code + ",0").toCharArray(ir, 1024);
-
-//     char *p; //Zeiger im Array
-//     unsigned int frequence = strtol(ir, &p, 10);
-//     p++; //Komma im String wird übersprungen
-//     unsigned int pulses = strtol(p, &p, 10);
-
-//     bool burst = true; //wir beginnen mit IR Licht
-
-//     unsigned int startTicks;
-//     unsigned int halfPeriodTicks = 40000000 / frequence;
-//     while (pulses != 0)
-//     {
-//       RSR_CCOUNT(startTicks);
-//       for (unsigned int i = 0; i < pulses * 2; i++)
-//       {
-//         if (IR_PORT_INVERT)
-//           digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? LOW : HIGH);
-//         else
-//           digitalWrite(IR_PORT, (((i & 1) == 1) && burst) ? HIGH : LOW);
-//         while (get_ccount() < startTicks + i * halfPeriodTicks)
-//         {
-//         } //Warten
-//       }
-//       burst = !burst;
-//       p++; //Komma im String wird übersprungen
-//       pulses = strtol(p, &p, 10);
-//     }
-//     digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW); //Am Ende IR immer AUS
-//   }
-//   else
-//   {
-//     Serial.println("Unknown Code Length");
-//     return;
-//   }
-//   Serial.println("IrCode send");
-// }
-
-// #pragma endregion
-
-// #pragma region handleReceiveIr
-// /*
-//   wartet eine Zeit ab, bis am Receiver ein IR Signal decodiert wurde
-//   blockiert den ESP
-// */
-// String handleReceiveIr()
-// {
-
-
-//   irReceiver.enableIRIn(); // Start the receiver
-//   unsigned long start = millis();
-
-//   String irData;
-
-//   while (millis() < start + IR_RECEIVE_WAIT_TIME)
-//   {
-//     if (irReceiver.decode(&irDecoded))
-//     {
-//       //Read and format IrData
-//       irData = "{\n";
-//       irData += "  \"Protocol\" : ";
-//       irData += "\"";
-//       irData += typeToString(irDecoded.decode_type, false);
-//       irData += "\",\n";
-//       irData += "  \"Value\" : \"";
-//       irData += uint64ToString(irDecoded.value, HEX);
-//       irData += "\",\n";
-//       irData += "  \"Length\" : \"";
-//       irData += irDecoded.rawlen;
-//       irData += "\",\n";
-//       irData += "  \"Address\" : \"";
-//       irData += irDecoded.address;
-//       irData += "\",\n";
-//       irData += "  \"Command\" : \"";
-//       irData += irDecoded.command;
-//       irData += "\",\n";
-//       irData += "  \"RCoid IR Code\" : \"";
-//       int freq = 38000;
-//       if (typeToString(irDecoded.decode_type, false).equals("SONY"))
-//         freq = 40000;
-//       irData += freq;
-//       for (int i = OFFSET_START; i < irDecoded.rawlen; i++)
-//       {
-//         irData += ",";
-//         irData += (int)(((irDecoded.rawbuf[i] * RAWTICK) * freq) / 1000000);
-//       }
-//       if (irDecoded.rawlen % 2 == 0)
-//       {
-//         irData += ",1";
-//       }
-//       irData += "\"\n";
-//       irData += "}";
-//       // // create HTML
-//       // htmlcontent = getHtmlPrefix();
-//       // htmlcontent += "<div class='field'><div class='control'>";
-//       // htmlcontent += irData;
-//       // htmlcontent += "</div></div>";
-//       // htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
-//       // htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
-//       // htmlcontent += getHtmlSuffix();
-
-//       Serial.println(irData);
-
-//       //server.send(200, "application/json", htmlcontent);
-
-//       irReceiver.resume();      // Receive the next value
-//       irReceiver.disableIRIn(); // Stopps the receiver
-
-//       return irData;
-//     }
-//     delay(100);
-//   };
-//   // htmlcontent = getHtmlPrefix();
-//   // htmlcontent += F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back");
-//   // htmlcontent += F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>");
-//   // htmlcontent += getHtmlSuffix();
-
-//   // server.send(408, "text/plain", htmlcontent);
-//   return irData;
-// }
-
-// #pragma endregion
-
-#pragma region serial_print_Networks
-/*
-   Zeigt eine Liste mit verfügbaren Netzwerken im Serial-Monitor an
-*/
-void serial_print_Networks()
-{
-  int n = WiFi.scanNetworks();
-
-  Serial.println("\nScan abgeschossen");
-  if (n == 0)
-    Serial.println("Kein WLAN gefunden");
-  else
-  {
-    for (int i = 0; i < n; ++i)
-    {
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-#ifdef ESP8266
-      Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " (open)" : "( closed)");
-#else
-      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " (open)" : "( closed)");
-#endif
-    }
-  }
-  Serial.println("");
-}
-
-#pragma endregion
-/*
-   Wartet die gegebene Zeit t(in s)ab, bis die Verbindung zum WLAN besteht.
-   gibt "true" zurück, wenn die Verbindung besteht.
-   Anderenfalls wird "false" zurück gegeben.
-*/
-bool WaitForConnection(int t)
-{
-  int counter = 0;
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    counter++;
-    if (counter > t * 2)
-      return false;
-    delay(500);
-    Serial.print(".");
-  }
-  return true;
-}
-
-/*
+/***********************************************************************************************************
     ////////////////////////////////////   SETUP Access Point  ///////////////////////////////////////////
 
-    Startet einen AP.
+    Create Soft AP.
     Settings:
         SSID = "ESP8266 for RCoid Access Point"
         Pass = "passpass"
         IP   = "192.168.0.1"
 
-    Wird ausgeführt, wenn der ESP keine Verbindung zum WLAN aufbauen konnte.
-
-*/
-
+    Will be done if no Wifi configured.
+************************************************************************************************************/
 void setupAP(void)
 {
   WiFi.mode(WIFI_AP_STA);
@@ -293,12 +54,12 @@ void setupAP(void)
 #ifdef ESP8266
   digitalWrite(LED_BUILTIN, LOW);
 #endif
-  Serial.println("HTTP server started");
+  Serial.println("Soft AP 'ESP8266 for RCoid Access Point' online");
 }
 
-/*
-   ////////////////////////////////////   SETUP   ///////////////////////////////////////////
-*/
+/********************************************************************************************
+ * ////////////////////////////////////   SETUP   ///////////////////////////////////////////
+*********************************************************************************************/
 void setup(void)
 {
 
@@ -311,12 +72,13 @@ void setup(void)
   //ESP32 devKit V2 has no onboard LED only Power
 #endif
   Serial.begin(115200);
-  // Serial.println("Init Filesystem");
-
+  Serial.print("Last Reset Cause: ");
+  Serial.println(getResetReason());
   initFileSystem();
   checkConfig();
   // try to load Config
   readConfig();
+  Serial.println("-- WiFi - Config --");
   Serial.println(getESPDevName());
   Serial.print("SSID: ");
   Serial.println(ssid);
@@ -326,67 +88,37 @@ void setup(void)
   Serial.println(deviceName);
   Serial.print("MAC: ");
   Serial.println(WiFi.macAddress());
-#ifdef MQTTENABLE
-//Setup WiFi Events nedded for MQTT-Client
-#ifdef ESP8266
-  //wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
-  wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
-#else
+  checkMqttConfig();
+  readMqttConfig();
   setupWiFiEvents();
-#endif
-#endif
-  if (ssid.length() > 1)
+  Serial.print("Last Reset Cause: ");
+  Serial.println(getResetReason());
+
+  if(ssid.length()>1)
   {
-
+    //Try to connect configured WiFi
     WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid.c_str(), passwd.c_str()); //Starte WIFI mit den Zugangsdaten aus Config
-    Serial.println("");
-   
+    connectToWiFi();
+    setupMqtt();
 
-    if (WaitForConnection(10))
-    {
-      Serial.println("");
-      Serial.print("Connected to ");
-      Serial.println(ssid);
-      Serial.print("IP address: ");
-      Serial.println(WiFi.localIP());
-      configureWebServer();
-      Serial.println("HTTP server started");
-      #ifdef MQTTENABLE
-//Setup WiFi Events nedded for MQTT-Client
-#ifdef ESP8266
-  //wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
-  wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
-#else
-  setupWiFiEvents();
-#endif
-      checkMqttConfig();
-      Serial.println("Setup MqttClient");
-      setupMqtt();
-      #endif
-      return;
-    }
   }
-  setupAP(); //wenn keine Verbindung zum WLAN hergestellt werden konnte, wird der Accespoint aufgespannt.
+  else
+  {
+    setupAP();
+  }
+  configureWebServer();
+  Serial.println("Setup finished");
 }
 
-/*
-   Hauptschleife
-*/
+/***********************************************************************************
+ * Main Loop
+************************************************************************************/
 void loop()
 {
   Serial.print(".");
+  delay(500);
   //Call the IR Receiver Handler
   receive_ir_nonblock(true);
   sendIrCodeFromQueue();
-  delay(500);
-  if(isOnSetup)
-  {
-    Serial.println("MQTT Connect from Loop");
-    //connectToMqtt();
-    mqttClient.connect();
-    isOnSetup=false;
-  }
-  //server.handleClient();
-  //mqttClient.loop();
+  
 }

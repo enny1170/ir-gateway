@@ -22,52 +22,10 @@
 
 WiFiClient wifiClient;
 AsyncMqttClient mqttClient;
+
 Ticker mqttReconnectTimer;
-WiFiEventHandler wifiConnectHandler;
-WiFiEventHandler wifiDisconnectHandler;
-//Mark actually Setup is running
-bool isOnSetup=false;
+Ticker wifiReconnectTimer;
 
-#ifdef ESP32
-void wifiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info)
-{
-    Serial.println("Connected to AP!");
-}
-void wifiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info)
-{
-  if(!isOnSetup)
-  {
-    Serial.println("Disconnected from Wi-Fi.");
-    //reboot the ESP
-    ESP.restart();
-  }
-  //mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-  //wifiReconnectTimer.once(2, connectToWifi);
-}
-void setupWiFiEvents()
-{
-    WiFi.onEvent(wifiStationConnected,SYSTEM_EVENT_STA_CONNECTED);
-    WiFi.onEvent(wifiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
-}
-
-#else
-void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
-  if(!isOnSetup)
-  {
-    Serial.println("Disconnected from Wi-Fi.");
-    //reboot the ESP
-    ESP.restart();
-  }
-  //mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-  //wifiReconnectTimer.once(2, connectToWifi);
-}
-#endif
-//Ticker wifiReconnectTimer;
-
-// actually in main, should be moved to Ircodes
-extern void handleIrCode(String code);
-
-#ifdef MQTTENABLE
 void connectToMqtt() {
   if(mqttServer==".")
   {
@@ -79,6 +37,62 @@ void connectToMqtt() {
     mqttClient.connect();
   }
 }
+
+void connectToWiFi()
+{
+  Serial.printf("\nConnecting Wifi %s ... ",ssid.c_str());
+  WiFi.begin(ssid.c_str(), passwd.c_str());
+}
+
+#ifdef ESP32
+void wifiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info)
+{
+      Serial.printf("\nWiFi connected to %s\n",ssid.c_str());
+      IPAddress ip = WiFi.localIP();
+      Serial.printf("Got IP-Address %s\n",(String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3])).c_str());
+      Serial.printf("Try start Mqtt-Client to %s\n",mqttServer.c_str());
+      connectToMqtt();
+}
+
+void wifiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info)
+{
+  Serial.println("Disconnected from Wi-Fi.");
+  mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+  wifiReconnectTimer.once(2, connectToWiFi);
+}
+
+#else
+
+WiFiEventHandler wifiConnectHandler;
+WiFiEventHandler wifiDisconnectHandler;
+
+void onWifiConnect(const WiFiEventStationModeGotIP& event)
+{
+      Serial.printf("\nWiFi connected to %s\n",ssid.c_str());
+      Serial.printf("IP Info: %s, Mask: %s, Gateway: %s\n",event.ip.toString().c_str(),event.mask.toString().c_str(),event.gw.toString().c_str());
+      Serial.printf("Try start Mqtt-Client to %s\n",mqttServer.c_str());
+      delay(500);
+      connectToMqtt();
+}
+
+void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
+  Serial.println("Disconnected from Wi-Fi.");
+  mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+  wifiReconnectTimer.once(2, connectToWiFi);
+}
+#endif
+
+void setupWiFiEvents()
+{
+#ifdef ESP8266
+    wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
+    wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
+#else
+    WiFi.onEvent(wifiStationConnected,SYSTEM_EVENT_STA_GOT_IP);
+    WiFi.onEvent(wifiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
+#endif
+}
+
 void onMqttConnect(bool sessionPresent)
 {
     Serial.println("Connected to MQTT.");
@@ -98,7 +112,6 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     mqttReconnectTimer.once(2, connectToMqtt);
   }
 }
-#endif
 
 void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
   Serial.println("Subscribe acknowledged.");
@@ -141,7 +154,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         {
             Serial.printf("Handle IrCode for CMD '%s' Descr: %s\n", cmdCode.Cmd.c_str(), cmdCode.Description.c_str());
             Serial.println(cmdCode.Code);
-            handleIrCode(cmdCode.Code);
+            addIrCodeToQueue(cmdCode.Code);
             mqttClient.publish((mqttPrefix + "/State").c_str(), 1, false, payloadCmd.c_str());
         }
     }
@@ -157,7 +170,6 @@ void onMqttPublish(uint16_t packetId) {
   Serial.println(packetId);
 }
 
-#ifdef MQTTENABLE
 void setupMqtt()
 {
   readMqttConfig();
@@ -176,15 +188,14 @@ void setupMqtt()
   Serial.print("Prefix: ");
   Serial.println(mqttPrefix);
   Serial.println("Set Server");
-  //mqttClient.setServer(mqttServer.c_str(), mqttPort.toInt());
-  mqttClient.setServer("195.147.158.201", 1883);
-  Serial.println("Set ClientId");
-  mqttClient.setClientId("test1");
-  Serial.println("Call connect");
-  isOnSetup=true;
-  //connectToMqtt();
+  mqttClient.setServer(mqttServer.c_str(), mqttPort.toInt());
+  //mqttClient.setServer("195.147.158.201", 1883);
+  Serial.print("ClientId: ");
+  Serial.println(getESPDevName());
+  mqttClient.setClientId(getESPDevName().c_str());
+  // Serial.println("Call connect");
+  // connectToMqtt();
 }
-#endif
 
 // Old implementations
 // this callback will called by received MQTT Message
