@@ -74,6 +74,7 @@ void setup(void)
 #endif
   Serial.begin(115200);
   delay(50);
+  //assert(irutils::lowLevelSanityCheck() == 0);
   initFileSystem();
   delay(5);
   setupWiFiEvents();
@@ -100,6 +101,7 @@ void setup(void)
   Serial.println(WiFi.macAddress());
   if(ssid.length()>1)
   {
+    WiFi.mode(WIFI_STA);
     Serial.println("Start Wifi");
     connectToWiFi();
   }
