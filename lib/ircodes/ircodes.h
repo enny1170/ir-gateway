@@ -22,7 +22,7 @@
 #endif
 
 
-#define IRCODE_SIZE 309
+#define IRCODE_SIZE 384
 #define IRCODE_FILE_NAME "/ircodes.json"
 #define IRCODE_FILE_EXTENSION ".jcmd"
 #define	IMPLEMENTATION	FIFO
@@ -39,11 +39,17 @@ File irCodeFile;
  * 
  * *********************************************************************************************************************************************************************************/
 // Hardware Defines
-#define IR_PORT 0
+#ifndef ESP32
+#define IR_PORT 0 //D3 wemos d1 mini
 #define IR_PORT_INVERT false
-#define IR_RECEIVER_PORT 2
+#define IR_RECEIVER_PORT 2 //D4
 #define IR_RECEIVE_WAIT_TIME 30000
-
+#else
+#define IR_PORT 17 //GPIO17 wemos d1 mini 32
+#define IR_PORT_INVERT false
+#define IR_RECEIVER_PORT 16 //GPIO16 
+#define IR_RECEIVE_WAIT_TIME 30000
+#endif
 // IR Variables
 char ir[1024];
 String irProtocoll;
@@ -324,13 +330,12 @@ void writeIrCmd(String cmd,String description,String code)
  * ****************************************************************************************************************************************/
 void writeIrCmd(IRcode ircode)
 {
-  const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
-  StaticJsonDocument<capacity> doc;
+  DynamicJsonDocument doc(IRCODE_SIZE);
 
 #if defined ESP8266 && filesystem == littlefs
   irCodeFile=LittleFS.open("/"+ircode.Cmd+IRCODE_FILE_EXTENSION,"w");
 #else
-  irCodeFile=SPIFFS.open("/"+ircode.Cmd+"cmd","w");
+  irCodeFile=SPIFFS.open("/"+ircode.Cmd+IRCODE_FILE_EXTENSION,"w");
 #endif
 
   doc["cmd"]=ircode.Cmd;
@@ -349,8 +354,7 @@ void writeIrCmd(IRcode ircode)
 IRcode readIrCmd(String cmd)
 {
     IRcode retval;
-    const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
-    StaticJsonDocument<capacity> doc;
+    DynamicJsonDocument doc(IRCODE_SIZE);
     Serial.printf("Get IrCmd for '%s'\n.",cmd.c_str());
     if (!cmd.endsWith(IRCODE_FILE_EXTENSION))
     {
@@ -487,7 +491,7 @@ String getCmds()
         if(dir.isFile() && dir.fileName().endsWith(IRCODE_FILE_EXTENSION))
         {
             int pointPos=dir.fileName().indexOf('.');
-            retval += dir.fileName().substring(1,pointPos);
+            retval += dir.fileName().substring(0,pointPos);
             retval += ", ";
         }
     }

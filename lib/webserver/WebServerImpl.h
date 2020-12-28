@@ -226,7 +226,7 @@ void configureWebServer()
       {
         response->print(" and deactivate AP");
       }
-      response->print(F("</a><a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
+      response->print(F("</a>&nbsp<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
     }
 
     response->print(getHtmlSuffix());
@@ -360,7 +360,7 @@ void configureWebServer()
     else
     {
       //Send header with Meta Tags
-      response->print(F("</div></div></section></body><head><meta http-equiv='refresh' content='5'></head></html>"));
+      response->print(F("</div></div></section></body><head><meta http-equiv='refresh' content='2'></head></html>"));
     }
       request->send(response);
   });
@@ -378,7 +378,7 @@ void configureWebServer()
   response->print("<div class='field'><div class='label'>Server IP:</div> \
     <div class='control'><input class='input' type='text' name='server' value='"+ mqttServer +"'></div></div>");
   response->print("<div class='field'><div class='label'>Port:</div> \
-    <div class='control'><input class='input' type='text' name='port' value='"+ mqttPort +"'></div></div>");
+    <div class='control'><input class='input' type='text' name='port' value='"+ String(mqttPort) +"'></div></div>");
   response->print("<div class='field'><div class='label'>Prefix:</div> \
     <div class='control'><input class='input' type='text' name='prefix' value='"+ mqttPrefix +"'></div></div>");
   response->print("<div class='field'><div class='label'>User Id:</div> \
@@ -411,16 +411,14 @@ void configureWebServer()
   }
   if(qserver.length()>0)
   {
-    writeMqttConfig(qserver,qport,qprefix,quser,qpass);
+    writeMqttConfig(qserver,qport.toInt(),qprefix,quser,qpass);
   }
   else
   {
     //Reset Mqtt Config
     writeMqttConfig();
   }
-  #ifdef MQTTENABLE
   setupMqtt();
-  #endif
   request->redirect("/mqtt");
   });
 
@@ -486,7 +484,7 @@ void configureWebServer()
       pCmdName=request->getParam("cmdname",true)->value();
       pCmdDescription=request->getParam("cmddescription",true)->value();
       pOrgName=request->getParam("orgname",true)->value();
-      if(pOrgName!=pCmdName)
+      if(pOrgName!=pCmdName && pOrgName!="")
       {
         deleteCmd(pOrgName);
       }

@@ -25,7 +25,7 @@
 // Im AP-Modus ist der ESP8266 unter der IP 192.168.0.1 erreichbar
 const char *ssidAP = "ESP8266 for RCoid Access Point";
 const char *passwordAP = "passpass"; //Muss mindestens 8 Zeichen haben
-
+bool startMqtt=false;
 
 /***********************************************************************************************************
     ////////////////////////////////////   SETUP Access Point  ///////////////////////////////////////////
@@ -51,11 +51,12 @@ void setupAP(void)
   WiFi.softAP(ssidAP, passwordAP, 3, false);
   delay(100);
   configureWebServer();
-#ifdef ESP8266
+#ifdef LED_BUILTIN
   digitalWrite(LED_BUILTIN, LOW);
 #endif
   Serial.println("Soft AP 'ESP8266 for RCoid Access Point' online");
 }
+
 
 /********************************************************************************************
  * ////////////////////////////////////   SETUP   ///////////////////////////////////////////
@@ -65,19 +66,28 @@ void setup(void)
 
   pinMode(IR_PORT, OUTPUT);
   digitalWrite(IR_PORT, IR_PORT_INVERT ? HIGH : LOW);
-#ifdef ESP8266
+#ifdef LED_BUILTIN
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
 #else
   //ESP32 devKit V2 has no onboard LED only Power
 #endif
   Serial.begin(115200);
-  Serial.print("Last Reset Cause: ");
-  Serial.println(getResetReason());
+  delay(50);
   initFileSystem();
+  delay(5);
+  setupWiFiEvents();
+  setupMqttEvents();
   checkConfig();
+  checkMqttConfig();
   // try to load Config
   readConfig();
+#ifdef ESP8266
+    //configure Webserver on esp8266 here because ESP32 implementation is different
+    configureWebServer();
+#endif
+  setupMqtt();
+
   Serial.println("-- WiFi - Config --");
   Serial.println(getESPDevName());
   Serial.print("SSID: ");
@@ -88,25 +98,19 @@ void setup(void)
   Serial.println(deviceName);
   Serial.print("MAC: ");
   Serial.println(WiFi.macAddress());
-  checkMqttConfig();
-  readMqttConfig();
-  setupWiFiEvents();
-  Serial.print("Last Reset Cause: ");
-  Serial.println(getResetReason());
-
   if(ssid.length()>1)
   {
-    //Try to connect configured WiFi
-    WiFi.mode(WIFI_STA);
+    Serial.println("Start Wifi");
     connectToWiFi();
-    setupMqtt();
-
   }
   else
   {
+    Serial.print("Setup Accespoint");
     setupAP();
   }
-  configureWebServer();
+  #ifdef ESP32
+    configureWebServer();
+  #endif
   Serial.println("Setup finished");
 }
 
@@ -115,10 +119,7 @@ void setup(void)
 ************************************************************************************/
 void loop()
 {
-  Serial.print(".");
-  delay(500);
   //Call the IR Receiver Handler
   receive_ir_nonblock(true);
   sendIrCodeFromQueue();
-  
 }

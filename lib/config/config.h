@@ -17,7 +17,7 @@
     #include <SPIFFS.h>
     #define SPIFFS_USE_MAGIC
 #endif
-#define CONFIG_SIZE 145
+#define CONFIG_SIZE 192
 #define CONFIG_FILE_NAME "/config.json"
 
 String getESPDevName();
@@ -34,9 +34,8 @@ String deviceName=getESPDevName();
 
 void writeConfig(String ssid,String passwd,String device=getESPDevName())
 {
-  const int capacity = JSON_OBJECT_SIZE(CONFIG_SIZE);
-  StaticJsonDocument<capacity> doc;
-
+  DynamicJsonDocument doc(CONFIG_SIZE);
+  
 #if defined ESP8266 && filesystem == littlefs
   configFile=LittleFS.open(CONFIG_FILE_NAME,"w");
 #else
@@ -63,8 +62,7 @@ void writeConfig(String ssid,String passwd,String device=getESPDevName())
 
 void readConfig()
 {
-  const int capacity = JSON_OBJECT_SIZE(CONFIG_SIZE);
-  StaticJsonDocument<capacity> doc;
+  DynamicJsonDocument doc(CONFIG_SIZE);
 
   Serial.println("Try to load WiFi-Config from file");
 
