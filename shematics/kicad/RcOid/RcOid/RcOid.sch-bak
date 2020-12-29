@@ -176,10 +176,10 @@ F 3 "~" H 3850 3100 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED:LD274 D?
+L LED:LD274 D2
 U 1 1 5FAC439D
 P 3950 2200
-F 0 "D?" V 3946 2121 50  0000 R CNN
+F 0 "D2" V 3946 2121 50  0000 R CNN
 F 1 "TRU 1577326" V 3855 2121 50  0000 R CNN
 F 2 "LED_THT:LED_D5.0mm_IRGrey" H 3950 2375 50  0001 C CNN
 F 3 "http://pdf.datasheetcatalog.com/datasheet/siemens/LD274.pdf" H 3900 2200 50  0001 C CNN
@@ -191,12 +191,12 @@ Wire Wire Line
 Wire Wire Line
 	3950 2400 3950 2500
 $Comp
-L Jumper:SolderJumper_2_Open JP?
+L Jumper:SolderJumper_2_Open JP1
 U 1 1 5FAC6616
 P 3550 2250
-F 0 "JP?" V 3504 2318 50  0000 L CNN
+F 0 "JP1" V 3504 2318 50  0000 L CNN
 F 1 "SJ" V 3595 2318 50  0000 L CNN
-F 2 "" H 3550 2250 50  0001 C CNN
+F 2 "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm" H 3550 2250 50  0001 C CNN
 F 3 "~" H 3550 2250 50  0001 C CNN
 	1    3550 2250
 	0    1    1    0   

@@ -124,8 +124,12 @@ void onMqttConnect(bool sessionPresent)
     mqttClient.publish((mqttPrefix + "/IpAddress").c_str(), 1, false, (String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3])).c_str());
     // publish available IrCmds
     mqttClient.publish((mqttPrefix + "/Cmds").c_str(), 2, false, getCmds().c_str());
-    // publisch online State
+    // publish online State
     mqttClient.publish((mqttPrefix + "/State").c_str(),2,true,"ONLINE");
+    // publisch Device Name
+    mqttClient.publish((mqttPrefix + "/DeviceName").c_str(),2,false,deviceName.c_str());
+    // publisch Client Id
+    mqttClient.publish((mqttPrefix + "/ClientId").c_str(),2,false,mqttClient.getClientId());
     // ... and resubscribe
     mqttClient.subscribe((mqttPrefix + "/Cmd").c_str(), 2);
 }

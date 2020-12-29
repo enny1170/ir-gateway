@@ -59,11 +59,14 @@ String irAddress;
 String irCommand;
 String irCode;
 String irReceiveState;
-IRrecv irReceiver(IR_RECEIVER_PORT);
-decode_results irDecoded;
 bool irReceiverState=false;
 bool irReceiveFinished=false;
 unsigned long receiverStart=0;
+const uint16_t kCaptureBufferSize = 1024;
+const uint8_t kTimeout = 15;
+const uint16_t kMinUnknownSize = 12;
+IRrecv irReceiver(IR_RECEIVER_PORT,kCaptureBufferSize,kTimeout,true);
+decode_results irDecoded;
 
 typedef struct strRec {
 	char data[1024];
@@ -101,78 +104,103 @@ static inline uint32_t get_ccount()
  * this will be called from Webserver, and must integrated in Loop with fromLopp=true
  * *********************************************************************************************************************************************************************************/
 
-void receive_ir_nonblock(bool fromLoop=false)
+void receive_ir_nonblock(bool fromLoop = false)
 {
-  if(fromLoop)
-  {
-      //Called from Loop, if enabled check Timout and result
-      if(irReceiverState)
-      {
-          // Receive is enabled check the results
-          if(irReceiver.decode(&irDecoded))
-          {
-              irReceiveFinished=true;
-              irReceiveState="IR CMD Received";
-              irProtocoll=typeToString(irDecoded.decode_type, false);
-              irValue=uint64ToString(irDecoded.value, HEX);
-              irAddress=irDecoded.address;
-              irLength=irDecoded.rawlen;
-              irCommand=irDecoded.command;
-              irCode="";
-              int freq = 38000;
-                if (typeToString(irDecoded.decode_type, false).equals("SONY"))
-                    freq = 40000;
-                irCode += freq;
-                for (int i = OFFSET_START; i < irDecoded.rawlen; i++)
+    if (fromLoop)
+    {
+        //Called from Loop, if enabled check Timout and result
+        if (irReceiverState)
+        {
+            // Receive is enabled check the results
+            if (irReceiver.decode(&irDecoded))
+            {
+                if (irDecoded.overflow)
                 {
-                    irCode += ",";
-                    irCode += (int)(((irDecoded.rawbuf[i] * RAWTICK) * freq) / 1000000);
+                    Serial.println("IR-Receive Buffer overflow");
                 }
-                if (irDecoded.rawlen % 2 == 0)
+                if (irDecoded.decode_type != decode_type_t::UNKNOWN)
                 {
-                    irCode += ",1";
+                    irReceiveFinished = true;
+                    irReceiveState = "IR CMD Received";
+                    irProtocoll = typeToString(irDecoded.decode_type, false);
+                    irValue = uint64ToString(irDecoded.value, HEX);
+                    irAddress = irDecoded.address;
+                    irLength = irDecoded.rawlen;
+                    irCommand = irDecoded.command;
+                    irCode = "";
+                    int freq = 38000;
+                    if (typeToString(irDecoded.decode_type, false).equals("SONY"))
+                        freq = 40000;
+                    irCode += freq;
+                    for (int i = OFFSET_START; i < irDecoded.rawlen; i++)
+                    {
+                        irCode += ",";
+                        irCode += (int)(((irDecoded.rawbuf[i] * RAWTICK) * freq) / 1000000);
+                    }
+                    if (irDecoded.rawlen % 2 == 0)
+                    {
+                        irCode += ",1";
+                    }
+                    //printout the captured Infos
+                    Serial.println(irReceiveState);
+                    Serial.print("Protocoll: ");
+                    Serial.println(irProtocoll);
+                    Serial.print("Value: ");
+                    Serial.println(irValue);
+                    Serial.print("Address: ");
+                    Serial.println(irAddress);
+                    Serial.print("Length: ");
+                    Serial.println(irLength);
+                    Serial.print("Command: ");
+                    Serial.println(irCommand);
+                    Serial.print("Code: ");
+                    Serial.println(irCode);
+                    irReceiver.resume();      // Receive the next value
+                    irReceiver.disableIRIn(); // Stopps the receiver
+                    irReceiverState = false;
                 }
-                //printout the captured Infos
+                else
+                {
+                    //received Code is unknow so we try it again
+                    Serial.println("IR Receive failed");
+                    irReceiver.resume();
+                    if(millis() > receiverStart + IR_RECEIVE_WAIT_TIME)
+                    {
+                        //Timeout stop receiver
+                        irReceiveFinished = true;
+                        irReceiveState = "Timeout no IR CMD Received";
+                        Serial.println(irReceiveState);
+                        irReceiver.resume();      // Receive the next value
+                        irReceiver.disableIRIn(); // Stopps the receiver
+                        irReceiverState = false;
+                    }
+                }
+            }
+            else if (millis() > receiverStart + IR_RECEIVE_WAIT_TIME)
+            {
+                //Timeout stop receiver
+                irReceiveFinished = true;
+                irReceiveState = "Timeout no IR CMD Received";
                 Serial.println(irReceiveState);
-                Serial.print("Protocoll: ");
-                Serial.println(irProtocoll);
-                Serial.print("Value: ");
-                Serial.println(irValue);
-                Serial.print("Address: ");
-                Serial.println(irAddress);
-                Serial.print("Length: ");
-                Serial.println(irLength);
-                Serial.print("Command: ");
-                Serial.println(irCommand);
-                Serial.print("Code: ");
-                Serial.println(irCode);
-              irReceiver.resume();      // Receive the next value
-              irReceiver.disableIRIn(); // Stopps the receiver
-              irReceiverState=false;
-          }
-          else if(millis() < receiverStart + IR_RECEIVE_WAIT_TIME)
-          {
-              //Timeout stop receiver
-              irReceiveFinished=true;
-              irReceiveState="Timeout no IR CMD Received";
-              Serial.println(irReceiveState);
-              irReceiver.resume();      // Receive the next value
-              irReceiver.disableIRIn(); // Stopps the receiver
-              irReceiverState=false;
-          }
-      }
-  }
-  else
-  {
-      // is called by Webserver, enable irReceiver if it not enabled and finished is false
-      if(!irReceiverState && !irReceiveFinished)
-      {
-          irReceiverState=true;
-          irReceiveState="IR Receiver enabled, waiting for Data";
-          irReceiver.enableIRIn();
-      }
-  }
-
+                irReceiver.resume();      // Receive the next value
+                irReceiver.disableIRIn(); // Stopps the receiver
+                irReceiverState = false;
+            }
+        }
+    }
+    else
+    {
+        // is called by Webserver, enable irReceiver if it not enabled and finished is false
+        if (!irReceiverState && !irReceiveFinished)
+        {
+            receiverStart=millis();
+            irReceiver.setUnknownThreshold(kMinUnknownSize);
+            irReceiver.setTolerance(kTolerance);
+            irReceiverState = true;
+            irReceiveState = "IR Receiver enabled, waiting for Data";
+            irReceiver.enableIRIn();
+        }
+    }
 }
 
 /**************************************************************************************************************************************************************************
