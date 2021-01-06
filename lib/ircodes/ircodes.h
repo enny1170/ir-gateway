@@ -443,20 +443,6 @@ IRcode readIrCmd(String cmd)
 
 #endif
     }
-
-    DeserializationError err = deserializeJson(doc, irCodeFile);
-    irCodeFile.close();
-    if (err)
-    {
-        Serial.println("Unable to read IrCode Data (Json Error)");
-        Serial.println(err.c_str());
-    }
-    else
-    {
-        retval.Cmd = doc["cmd"].as<String>();
-        retval.Description = doc["description"].as<String>();
-        retval.Code = doc["code"].as<String>();
-    }
     
   DeserializationError err = deserializeJson(doc, irCodeFile);
   irCodeFile.close();
@@ -629,6 +615,7 @@ String buildCmdEditPage(String cmd)
     retval += "<div class='field'><div class='label'>CMD-Name*:</div><div class='control'><input class='input' type='text' name='cmdname' value='"+tmpCode.Cmd+"'></div></div>";
     retval += "<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value='"+tmpCode.Description+"'></div></div>";
     retval += "<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value='"+tmpCode.Code+"'></div></div>";
+    retval += "<div class='field'><div class='label'>GC Code:</div><div class='control'><input class='input' type='text' name='gccode' value='"+tmpCode.GcCode+"'></div></div>";
     retval += "<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/>&nbsp<a href='delcmd?cmd="+tmpCode.Cmd+"'><i class='fa fa-trash'></i></a></div></div></form>";
     return retval;
 }

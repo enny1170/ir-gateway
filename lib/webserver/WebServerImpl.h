@@ -460,6 +460,7 @@ void configureWebServer()
     String pCmdName;
     String pCmdDescription;
     String pOrgName;
+    String pGcCode;
     Serial.println("/cmd Post-Parameters");
     for(int i=0;i<params;i++){
       AsyncWebParameter* p = request->getParam(i);
@@ -477,18 +478,22 @@ void configureWebServer()
       }
     } // for(int i=0;i<params;i++)
 
-    if (request->hasParam("cmdname",true,false) && request->hasParam("cmddescription",true,false) && request->hasParam("code",true,false) && request->hasParam("orgname",true,false))
+    if (request->hasParam("cmdname",true,false) && request->hasParam("cmddescription",true,false) && 
+    request->hasParam("code",true,false) && 
+    request->hasParam("orgname",true,false) && 
+    request->hasParam("gccode",true,false))
     {
       Serial.println("Save Cmd Values found");
       pCode = request->getParam("code",true)->value();
       pCmdName=request->getParam("cmdname",true)->value();
       pCmdDescription=request->getParam("cmddescription",true)->value();
       pOrgName=request->getParam("orgname",true)->value();
+      pGcCode=request->getParam("gccode",true)->value();
       if(pOrgName!=pCmdName && pOrgName!="")
       {
         deleteCmd(pOrgName);
       }
-      IRcode tmpCode=IRcode(pCmdName,pCmdDescription,pCode);
+      IRcode tmpCode=IRcode(pCmdName,pCmdDescription,pCode,pGcCode);
       writeIrCmd(tmpCode);
       request->redirect("/cmds");
     }
@@ -525,6 +530,14 @@ void configureWebServer()
       else
       {
         response->print("<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value=''></div></div>");
+      }
+      if(request->hasParam("gccode"))
+      {
+        response->print("<div class='field'><div class='label'>GC Code:</div><div class='control'><input class='input' type='text' name='gccode' value='"+request->getParam("code")->value()+"'></div></div>");
+      }
+      else
+      {
+        response->print("<div class='field'><div class='label'>GC Code:</div><div class='control'><input class='input' type='text' name='gccode' value=''></div></div>");
       }
       response->print("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>");
       response->print(getHtmlSuffix());

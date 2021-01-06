@@ -9,7 +9,7 @@ private:
     /* nothing */
 public:
     IRcode();
-    IRcode(String cmd,String description,String code);
+    IRcode(String cmd,String description,String code,String gcCode);
     ~IRcode();
     String Cmd;
     String Description;
@@ -25,7 +25,7 @@ IRcode::IRcode()
     GcCode="";
 }
 
-IRcode::IRcode(String cmd,String description,String code,String gcCode="")
+IRcode::IRcode(String cmd,String description,String code,String gcCode)
 {
     Cmd=cmd;
     Description=description;
