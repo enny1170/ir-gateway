@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "*.txt": "cpp"
+        "*.txt": "cpp",
+        "cstdlib": "cpp",
+        "functional": "cpp"
     }
 }

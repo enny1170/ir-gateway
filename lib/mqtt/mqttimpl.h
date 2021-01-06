@@ -1,3 +1,10 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Implementation Module for MQTT Client
+// YOU must define MQTTENABLE to enable this Module
+// This can be done by #define MQTTENABLE
+// ord as build_flags=-DMQTTENABLE in platform.ini
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #ifndef MQTTIMPL_H
 #define MQTTIMPL_H
 
@@ -15,41 +22,11 @@
 
 WiFiClient wifiClient;
 AsyncMqttClient mqttClient;
+
 Ticker mqttReconnectTimer;
+Ticker wifiReconnectTimer;
 
-#ifdef ESP32
-void wifiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info)
-{
-    Serial.println("Connected to AP!");
-}
-void wifiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info)
-{
-  Serial.println("Disconnected from Wi-Fi.");
-  //reboot the ESP
-  ESP.restart();
-  //mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-  //wifiReconnectTimer.once(2, connectToWifi);
-}
-void setupWiFiEvents()
-{
-    WiFi.onEvent(wifiStationConnected,SYSTEM_EVENT_STA_CONNECTED);
-    WiFi.onEvent(wifiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
-}
-#else
-WiFiEventHandler wifiConnectHandler;
-WiFiEventHandler wifiDisconnectHandler;
-void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
-  Serial.println("Disconnected from Wi-Fi.");
-  //reboot the ESP
-  ESP.restart();
-  //mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-  //wifiReconnectTimer.once(2, connectToWifi);
-}
-#endif
-//Ticker wifiReconnectTimer;
-
-// actually in main, should be moved to Ircodes
-extern void handleIrCode(String code);
+char mqttLastWillTopic[1024];
 
 void connectToMqtt() {
   if(mqttServer==".")
@@ -59,8 +36,84 @@ void connectToMqtt() {
   else
   {
     Serial.println("Connecting to MQTT...");
+    // delay(500);
     mqttClient.connect();
   }
+}
+
+void connectToWiFi()
+{
+  Serial.printf("\nConnecting Wifi %s ... ",ssid.c_str());
+  WiFi.begin(ssid.c_str(), passwd.c_str());
+  // if(WiFi.waitForConnectResult()!=WL_CONNECTED)
+  // {
+  //   Serial.println("+");
+  //   // delay(1000);
+  //   // WiFi.begin(ssid.c_str(), passwd.c_str());
+  // }
+}
+
+#ifdef ESP32
+void wifiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info)
+{
+      Serial.printf("\nWiFi connected to %s\n",ssid.c_str());
+      IPAddress ip = WiFi.localIP();
+      Serial.printf("Got IP-Address %s\n",(String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3])).c_str());
+      Serial.printf("Try start Mqtt-Client to %s\n",mqttServer.c_str());
+      connectToMqtt();
+}
+
+void wifiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info)
+{
+  Serial.println("Disconnected from Wi-Fi.");
+  mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+  wifiReconnectTimer.once(2, connectToWiFi);
+}
+
+#else
+
+WiFiEventHandler wifiConnectHandler;
+WiFiEventHandler wifiDisconnectHandler;
+
+void onWifiConnect(const WiFiEventStationModeGotIP& event) {
+  Serial.println("Connected to Wi-Fi.");
+  Serial.print("IP-Address: ");
+  Serial.println(WiFi.localIP().toString());
+  connectToMqtt();
+}
+
+void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
+  Serial.println("Disconnected from Wi-Fi.");
+  mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+  wifiReconnectTimer.once(2, connectToWiFi);
+}
+
+// void onWifiConnect(const WiFiEventStationModeGotIP& event)
+// {
+//       // Serial.printf("\nWiFi connected to %s\n",ssid.c_str());
+//       // Serial.printf("IP Info: %s, Mask: %s, Gateway: %s\n",event.ip.toString().c_str(),event.mask.toString().c_str(),event.gw.toString().c_str());
+//       // Serial.printf("Try start Mqtt-Client to %s\n",mqttServer.c_str());
+//       // delay(500);
+//       Serial.print("WiFi connected");
+//       connectToMqtt();
+// }
+
+// void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
+//   Serial.println("Disconnected from Wi-Fi.");
+//   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+//   wifiReconnectTimer.once(2, connectToWiFi);
+// }
+#endif
+
+void setupWiFiEvents()
+{
+#ifdef ESP8266
+    wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
+    wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
+#else
+    WiFi.onEvent(wifiStationConnected,SYSTEM_EVENT_STA_GOT_IP);
+    WiFi.onEvent(wifiStationDisconnected, SYSTEM_EVENT_STA_DISCONNECTED);
+#endif
 }
 
 void onMqttConnect(bool sessionPresent)
@@ -68,9 +121,15 @@ void onMqttConnect(bool sessionPresent)
     Serial.println("Connected to MQTT.");
     IPAddress ip = WiFi.localIP();
     // Once connected, publish current IP-Address
-    mqttClient.publish((mqttPrefix + "/IpAddress").c_str(), 1, true, (String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3])).c_str());
+    mqttClient.publish((mqttPrefix + "/IpAddress").c_str(), 1, false, (String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3])).c_str());
     // publish available IrCmds
-    mqttClient.publish((mqttPrefix + "/Cmds").c_str(), 2, true, getCmds().c_str());
+    mqttClient.publish((mqttPrefix + "/Cmds").c_str(), 2, false, getCmds().c_str());
+    // publish online State
+    mqttClient.publish((mqttPrefix + "/State").c_str(),2,true,"ONLINE");
+    // publisch Device Name
+    mqttClient.publish((mqttPrefix + "/DeviceName").c_str(),2,false,deviceName.c_str());
+    // publisch Client Id
+    mqttClient.publish((mqttPrefix + "/ClientId").c_str(),2,false,mqttClient.getClientId());
     // ... and resubscribe
     mqttClient.subscribe((mqttPrefix + "/Cmd").c_str(), 2);
 }
@@ -118,19 +177,19 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         if (cmdCode.Description == "empty")
         {
             Serial.printf("'%s' unknown CMD\n", payloadCmd.c_str());
-            mqttClient.publish((mqttPrefix + "/State").c_str(), 1, false, (payloadCmd + " unknown CMD").c_str());
+            mqttClient.publish((mqttPrefix + "/Message").c_str(), 1, false, (payloadCmd + " unknown CMD").c_str());
         }
         else
         {
             Serial.printf("Handle IrCode for CMD '%s' Descr: %s\n", cmdCode.Cmd.c_str(), cmdCode.Description.c_str());
             Serial.println(cmdCode.Code);
-            handleIrCode(cmdCode.Code);
-            mqttClient.publish((mqttPrefix + "/State").c_str(), 1, false, payloadCmd.c_str());
+            addIrCodeToQueue(cmdCode.Code);
+            mqttClient.publish((mqttPrefix + "/Message").c_str(), 1, false, payloadCmd.c_str());
         }
     }
     else
     {
-        mqttClient.publish((mqttPrefix + "/State").c_str(), 1, false, "Unexpected topic");
+        mqttClient.publish((mqttPrefix + "/Message").c_str(), 1, false, "Unexpected topic");
     }
 }
 
@@ -140,22 +199,23 @@ void onMqttPublish(uint16_t packetId) {
   Serial.println(packetId);
 }
 
-void setupMqtt()
+void setupMqttEvents()
 {
-  readMqttConfig();
-  mqttClient.disconnect(true);
-#ifdef ESP8266
-  //wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
-  wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
-#else
-  setupWiFiEvents();
-#endif
   mqttClient.onConnect(onMqttConnect);
   mqttClient.onDisconnect(onMqttDisconnect);
   mqttClient.onSubscribe(onMqttSubscribe);
   mqttClient.onUnsubscribe(onMqttUnsubscribe);
   mqttClient.onMessage(onMqttMessage);
   mqttClient.onPublish(onMqttPublish);
+}
+
+void setupMqtt()
+{
+  readMqttConfig();
+  if(mqttClient.connected())
+  {
+    mqttClient.disconnect(true);
+  }
   Serial.println("Setup MQTT-Client...");
   Serial.print("Server: ");
   Serial.println(mqttServer);
@@ -163,9 +223,15 @@ void setupMqtt()
   Serial.println(mqttPort);
   Serial.print("Prefix: ");
   Serial.println(mqttPrefix);
-  mqttClient.setServer(mqttServer.c_str(), mqttPort.toInt());
-  mqttClient.setClientId(mqttPrefix.c_str());
-  connectToMqtt();
+  Serial.println("Set Server");
+  mqttClient.setServer(mqttServer.c_str(), mqttPort);
+  Serial.print("ClientId: ");
+  Serial.println(mqttClient.getClientId());
+  //last Will topic must be a global variable, because set will gives obly the pointer to the content
+  (mqttPrefix+"/State").toCharArray(mqttLastWillTopic,1024);
+  Serial.print("LastWillTopic: ");
+  Serial.println(mqttLastWillTopic);
+  mqttClient.setWill(mqttLastWillTopic,2,true,"OFFLINE");
 }
 
 // Old implementations

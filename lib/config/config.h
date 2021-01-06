@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <tools.h>
 
 #ifndef ESP32
 #if filesystem==littlefs
@@ -16,7 +17,7 @@
     #include <SPIFFS.h>
     #define SPIFFS_USE_MAGIC
 #endif
-#define CONFIG_SIZE 145
+#define CONFIG_SIZE 192
 #define CONFIG_FILE_NAME "/config.json"
 
 String getESPDevName();
@@ -27,50 +28,14 @@ String ssid;
 String passwd;
 String deviceName=getESPDevName();
 
-void initFileSystem()
-{
-#if defined ESP8266 && filesystem == littlefs
-    Serial.println("Mounting Flash...");
-    if (!LittleFS.begin())
-    {
-        Serial.println("Failed to mount file system. Format it");
-        if(!LittleFS.format())
-        {
-            Serial.println("Failed to format file system");
-        }
-        if(!LittleFS.begin())
-        {
-            Serial.println("Failed to mount file system after format");
-        }
-        return;
-    }
-#else
-    Serial.println("Mounting SPIFFS...");
-    if (!SPIFFS.begin())
-    {
-        Serial.println("Failed to mount file system. Format it.");
-        if(!SPIFFS.format())
-        {
-          Serial.println("Failedto format file system");
-        }
-        if(!SPIFFS.begin())
-        {
-            Serial.println("Failed to mount file system after format");
-        }
-        return;
-    }
-#endif
-}
-
 /*
   Config File Helper Functions
 */
 
 void writeConfig(String ssid,String passwd,String device=getESPDevName())
 {
-  const int capacity = JSON_OBJECT_SIZE(CONFIG_SIZE);
-  StaticJsonDocument<capacity> doc;
-
+  DynamicJsonDocument doc(CONFIG_SIZE);
+  
 #if defined ESP8266 && filesystem == littlefs
   configFile=LittleFS.open(CONFIG_FILE_NAME,"w");
 #else
@@ -97,8 +62,7 @@ void writeConfig(String ssid,String passwd,String device=getESPDevName())
 
 void readConfig()
 {
-  const int capacity = JSON_OBJECT_SIZE(CONFIG_SIZE);
-  StaticJsonDocument<capacity> doc;
+  DynamicJsonDocument doc(CONFIG_SIZE);
 
   Serial.println("Try to load WiFi-Config from file");
 
@@ -142,21 +106,6 @@ void checkConfig()
 #endif
 
 
-}
-
-String getESPDevName()
-{
-  char devName[30];
-  #ifdef ESP8266
-  snprintf(devName,30,"ESP-%08X",ESP.getChipId());
-  #else
-  uint32_t chipId=0;
-  for(int i=0; i<17; i=i+8) {
-	  chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-	}
-  snprintf(devName,30,"ESP-%08X",chipId);
-  #endif
-  return (String)devName;
 }
 
 #endif

@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <tools.h>
 
 #ifndef ESP32
 #if filesystem==littlefs
@@ -13,59 +14,27 @@
 #endif
 #else
     #include <FS.h>
+    #include <SPIFFS.h>
     #define SPIFFS_USE_MAGIC
 #endif
 
-#define MQTT_SIZE 210
+#define MQTT_SIZE 256
 #define MQTT_FILE_NAME "/mqtt.json"
 
-String getESPDevName();
-// global variables for PubSubClient
+// global variables for MQTTClient
 File mqttFile;
 String mqttServer=".";
-String mqttPort="1833";
+uint16_t mqttPort=1833;
 String mqttPrefix=getESPDevName();
 String mqttUser="";
 String mqttPass="";
 
-#ifndef CONFIG_H
-
-void initFileSystem()
+/**********************************************************************************************************
+ * Config File Helper Functions
+***********************************************************************************************************/
+void writeMqttConfig(String server=".",uint16_t port=1883,String prefix=getESPDevName(),String user="",String pass="")
 {
-#if defined ESP8266 && filesystem == littlefs
-    Serial.println("Mounting SPIFFS...");
-    if (!LittleFS.begin())
-    {
-        Serial.println("Failed to mount file system. Format it");
-        if(!LittleFS.format())
-        {
-            Serial.println("Failed to format file system");
-        }
-        if(!LittleFS.begin())
-        {
-            Serial.println("Failed to mount file system after format");
-        }
-        return;
-    }
-#else
-    Serial.println("Mounting SPIFFS...");
-    if (!SPIFFS.begin())
-    {
-        Serial.println("Failed to mount file system");
-        return;
-    }
-#endif
-}
-
-#endif
-/*
-  Config File Helper Functions
-*/
-
-void writeMqttConfig(String server=".",String port="1883",String prefix=getESPDevName(),String user="",String pass="")
-{
-  const int capacity = JSON_OBJECT_SIZE(MQTT_SIZE);
-  StaticJsonDocument<capacity> doc;
+  DynamicJsonDocument mdoc(256);
 
 #if defined ESP8266 && filesystem == littlefs
   mqttFile=LittleFS.open(MQTT_FILE_NAME,"w");
@@ -75,31 +44,32 @@ void writeMqttConfig(String server=".",String port="1883",String prefix=getESPDe
 
   if(server.length()>1 )
   {
-    doc["mqttServer"]=server;
-    doc["mqttPort"]=port;
-    doc["mqttPrefix"]=prefix;
-    doc["mqttUser"]=user;
-    doc["mqttPass"]=pass;
+    mdoc["mqttServer"]=server;
+    mdoc["mqttPort"]=port;
+    mdoc["mqttPrefix"]=prefix;
+    mdoc["mqttUser"]=user;
+    mdoc["mqttPass"]=pass;
   }
   else
   {
-    doc["mqttServer"]=".";
-    doc["mqttPort"]="1883";
-    doc["mqttPrefix"]=getESPDevName();
-    doc["mqttUser"]="";
-    doc["mqttPass"]="";
+    mdoc["mqttServer"]=".";
+    mdoc["mqttPort"]=1883;
+    mdoc["mqttPrefix"]=getESPDevName();
+    mdoc["mqttUser"]="";
+    mdoc["mqttPass"]="";
   }
   
-  serializeJson(doc,mqttFile);
+  serializeJson(mdoc,mqttFile);
   mqttFile.flush();
   mqttFile.close();
 }
 
+/*************************************************************************************************************************
+ * Read MQTT Config from File
+ * ***********************************************************************************************************************/
 void readMqttConfig()
 {
-  const int capacity = JSON_OBJECT_SIZE(MQTT_SIZE);
-  StaticJsonDocument<capacity> doc;
-
+  DynamicJsonDocument mdoc(256);
   Serial.println("Try to load MQTT-Config from file");
 
 #if defined ESP8266 && filesystem == littlefs
@@ -107,7 +77,7 @@ void readMqttConfig()
 #else
   mqttFile=SPIFFS.open(MQTT_FILE_NAME,"r");
 #endif
-  DeserializationError err = deserializeJson(doc, mqttFile);
+  DeserializationError err = deserializeJson(mdoc, mqttFile);
   mqttFile.close();
   if(err)
   {
@@ -116,14 +86,17 @@ void readMqttConfig()
   }
   else
   {
-    mqttServer= doc["mqttServer"].as<String>();
-    mqttPort=doc["mqttPort"].as<String>();
-    mqttPrefix=doc["mqttPrefix"].as<String>();
-    mqttUser=doc["mqttUser"].as<String>();
-    mqttPass=doc["mqttPass"].as<String>();
+    mqttServer= mdoc["mqttServer"].as<String>();
+    mqttPort=mdoc["mqttPort"].as<uint16_t>();
+    mqttPrefix=mdoc["mqttPrefix"].as<String>();
+    mqttUser=mdoc["mqttUser"].as<String>();
+    mqttPass=mdoc["mqttPass"].as<String>();
   }
 }
 
+/*********************************************************************************************************************
+ * Check Mqtt Config File exists
+ * *******************************************************************************************************************/
 void checkMqttConfig()
 {
   //check Config File is exists, or create one
@@ -144,16 +117,5 @@ void checkMqttConfig()
 
 
 }
-
-#ifndef CONFIG_H
-
-String getESPDevName()
-{
-  char devName[30];
-  snprintf(devName,30,"ESP-%08X",ESP.getChipId());
-  return (String)devName;
-}
-
-#endif
 
 #endif
