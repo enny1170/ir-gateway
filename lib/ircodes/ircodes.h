@@ -329,10 +329,8 @@ void initFileSystem()
   Data File Helper Functions
 */
 
-/******************************************************************************************************************************************
- *  Create IRCode Object by members
- * ****************************************************************************************************************************************/
-void writeIrCmd(String cmd,String description,String code)
+// Create IRCode Object by members
+void writeIrCmd(String cmd,String description,String code,String gcCode="")
 {
   const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
   StaticJsonDocument<capacity> doc;
@@ -345,7 +343,8 @@ void writeIrCmd(String cmd,String description,String code)
 
   doc["cmd"]=cmd;
   doc["description"]=description;
-  doc["code"]=code;  
+  doc["code"]=code;
+  doc["gccode"]=gcCode;  
 
   serializeJson(doc,irCodeFile);
   irCodeFile.flush();
@@ -368,7 +367,8 @@ void writeIrCmd(IRcode ircode)
 
   doc["cmd"]=ircode.Cmd;
   doc["description"]=ircode.Description;
-  doc["code"]=ircode.Code;  
+  doc["code"]=ircode.Code;
+  doc["gccode"]=ircode.GcCode;  
 
   serializeJson(doc,irCodeFile);
   irCodeFile.flush();
@@ -457,6 +457,22 @@ IRcode readIrCmd(String cmd)
         retval.Description = doc["description"].as<String>();
         retval.Code = doc["code"].as<String>();
     }
+    
+  DeserializationError err = deserializeJson(doc, irCodeFile);
+  irCodeFile.close();
+  if(err)
+  {
+    Serial.println("Unable to read IrCode Data (Json Error)");
+    Serial.println(err.c_str());
+  }
+  else
+  {
+    retval.Cmd=doc["cmd"].as<String>();
+    retval.Description=doc["description"].as<String>();
+    retval.Code=doc["code"].as<String>();
+    retval.GcCode=doc["gccode"].as<String>();
+  }
+
 
     return retval;
 }
