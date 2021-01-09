@@ -19,9 +19,23 @@
 
 #include <mqttconf.h>
 #include <ircodes.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <ntpTimer.h>
 
 WiFiClient wifiClient;
 AsyncMqttClient mqttClient;
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 3600, 60000);
+
+callBackFunc_t funcPointer;
+void testCallback(String cmd)
+{
+  Serial.println("\n ...... Timmer Callback received ........");
+  IRcode code = readIrCmd(cmd);
+  addIrCodeToQueue(code.Code);  
+}
+ntpTimer cmdTimer(testCallback);
 
 Ticker mqttReconnectTimer;
 Ticker wifiReconnectTimer;
@@ -60,6 +74,7 @@ void wifiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info)
       IPAddress ip = WiFi.localIP();
       Serial.printf("Got IP-Address %s\n",(String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3])).c_str());
       Serial.printf("Try start Mqtt-Client to %s\n",mqttServer.c_str());
+      timeClient.begin();
       connectToMqtt();
 }
 
@@ -79,6 +94,7 @@ void onWifiConnect(const WiFiEventStationModeGotIP& event) {
   Serial.println("Connected to Wi-Fi.");
   Serial.print("IP-Address: ");
   Serial.println(WiFi.localIP().toString());
+  timeClient.begin();
   connectToMqtt();
 }
 

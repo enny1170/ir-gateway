@@ -55,7 +55,7 @@ String getHtmlPrefix()
         <a role='button' class='navbar-burger' aria-label='menu' aria-expanded='true' ><span></span><span></span><span></span> \
         </a></div><div class='navbar-menu'><div class='navbar-start'><div class='navbar-item'> \
         <a class='navbar-item' href='/mqtt'>MQTT Settings</a> \
-        <hr><a class='navbar-item' href='cmds'>Commands</a> <a class='navbar-item' href='docu.html'>Readme</a></div> \
+        <hr><a class='navbar-item' href='cmds'>Commands</a> <a class='navbar-item' href='/docu'>Readme</a></div> \
         </div></div><div class='navbar-end'></div></nav><section class='section'> \
         <div class='container'><div class='content'>");
 }
@@ -184,9 +184,13 @@ void configureWebServer()
         <div class='control'>" +
                      deviceName +
                      "</div></div>");
-      response->print(F("<div class='field'><div class='buttons'><a class='button is-danger' href='/deletepass'>delete WiFi-Settings"));
-      response->print(F("<a class='button is-warning' href='/reset'>Reboot Device</a></div></div>"));
-      response->print(F("<a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
+      response->print(F("<div class='field'><div class='label'>Timer</div><div class='control'>"));
+      response->print(cmdTimer.getTimerString());
+      response->print(F("</div></div>"));               
+      response->print(F("<div class='field'><div class='buttons'><a class='button is-danger' href='/deletepass'>delete WiFi-Settings</a></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><a class='button is-danger' href='/factory'>factory Reset</a></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><a class='button is-warning' href='/reset'>Reboot Device</a></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
     }
     else
     {
@@ -194,6 +198,9 @@ void configureWebServer()
                   <div class='control'>AP-Mode, IP-Address: " +
                      String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) +
                      "</div></div>");
+      response->print(F("<div class='field'><div class='label'>Timer</div><div class='control'>"));
+      response->print(cmdTimer.getTimerString());
+      response->print(F("</div></div>"));               
       int n = WiFi.scanNetworks();
       if (n > 0)
       {
@@ -549,11 +556,11 @@ void configureWebServer()
    * Edit Command
    * *********************************************************************************************************************************************/
   server.on("/editcmd",HTTP_GET,[](AsyncWebServerRequest *request){
+    AsyncResponseStream *response=request->beginResponseStream("text/html");
     String qcmd;
     if (request->hasParam("cmd"))
     {
       qcmd = request->getParam("cmd")->value();
-      AsyncResponseStream *response=request->beginResponseStream("text/html");
       response->print(getHtmlPrefix());
       response->print(buildCmdEditPage(qcmd));
       response->print(getHtmlSuffix());
@@ -561,7 +568,10 @@ void configureWebServer()
     }
     else
     {
-      request->redirect("/cmds");
+      response->print(getHtmlPrefix());
+      response->print(buildCmdEditPage(""));
+      response->print(getHtmlSuffix());
+      request->send(response);
     }
   });
 
@@ -665,14 +675,137 @@ void configureWebServer()
   ESP.restart();
   });
 
+/*************************************************************************************************************************************************
+ * Handle /timer
+ * **********************************************************************************************************************************************/
+
+  server.on("/timer",HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+    String qcmd;
+    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    cmdTimer.update();
+    response->print(getHtmlPrefix());
+    if (request->hasParam("cmd"))
+    {
+      qcmd = request->getParam("cmd")->value();
+      response->print("<form method='Post' action='/timer'>");
+      response->print("<div class='field'><div class='label'>Timer for Command</div><div class='control'><input class='input' type='text' name='cmdname' value='"+qcmd+"'></div></div>");
+      response->print("<input class='input' type='hidden' name='cmd' value='"+qcmd+"'>");
+      response->print("<div class='field'><div class='label'>current Time:</div><div class='control'>"+timeClient.getFormattedTime()+"</div></div>");
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='10 Minutes' name='button'/></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='20 Minutes' name='button'/></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='30 Minutes' name='button'/></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='40 Minutes' name='button'/></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='50 Minutes' name='button'/></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='1 Hour' name='button'/></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='1.5 Hours' name='button'/></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='2 Hours' name='button'/></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='2.5 Hours' name='button'/></div></div>"));
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='3 Hours' name='button'/></div></div>"));
+      response->print("</form>");
+    }
+    else
+    {
+      response->print(F("<div class='field'><div class='label'>Error:</div><div class='control'>Parameter CMD not given.</div></div>")); //"<input class='input' type='text' name='cmdname' value='"+request->getParam("cmdname")->value()+"'></div></div>");
+    }
+    response->print(getHtmlSuffix());
+    request->send(response);
+  });
+
+  server.on("/timer",HTTP_POST, [](AsyncWebServerRequest *request)
+  {
+    String qcmd;
+    String qValue;
+    size_t offsetMinutes=0;
+    if(request->hasParam("cmdname",true,false) && request->hasParam("button",true,false))
+    {
+      qcmd=request->getParam("cmdname",true)->value();
+      qValue=request->getParam("button",true)->value();
+      if(qValue=="10 Minutes")
+        offsetMinutes=10;
+      else if(qValue=="20 Minutes")
+        offsetMinutes=20;
+      else if(qValue=="30 Minutes")
+        offsetMinutes=30;
+      else if(qValue=="40 Minutes")
+        offsetMinutes=40;
+      else if(qValue=="50 Minutes")
+        offsetMinutes=50;
+      else if(qValue=="1 Hour")
+        offsetMinutes=60;
+      else if(qValue=="1.5 Hours")
+        offsetMinutes=90;
+      else if(qValue=="2 Hours")
+        offsetMinutes=120;
+      else if(qValue=="2.5 Hours")
+        offsetMinutes=150;
+      else if(qValue=="3 Hours")
+        offsetMinutes=180;
+
+      if(offsetMinutes>0)
+      {
+        Serial.printf("\nSetup Timer for %s in %i Minutes",qcmd.c_str(),offsetMinutes);
+        cmdTimer.setTimer(offsetMinutes,qcmd);
+      }
+    }
+    request->redirect("/");
+  });
+
+  /**************************************************************************************************************
+   * Handle /factory (Factory Reset)
+   * ***********************************************************************************************************/
+
+  server.on("/factory",HTTP_GET,[](AsyncWebServerRequest *request)
+  {
+      AsyncResponseStream *response=request->beginResponseStream("text/html");
+      response->print(getHtmlPrefix());
+      response->print("<form method='Post' action='/factory'>");
+      response->print("<div class='field'><div class='label'>Factory Reset</div><div class='control'> \
+      This operation will be remove all configuration from device. Do you want to do this ?</div></div>");
+      response->print("<div class='field'><div class='buttons'><input class='button is-dangerous' type='submit' value='YES' name='button'/> <div class'buttons is-success'>\
+      <a href='/'>NO</a></div></div></div>");
+      response->print(getHtmlSuffix());
+      request->send(response);
+  });
+
+  server.on("/factory",HTTP_GET,[](AsyncWebServerRequest *request)
+  {
+    // remove all files and reboot
+    removeAllConfigFiles();
+    request->redirect("/reset");
+  });
+
+  /*******************************************************************************************************************
+   * Handle /docu 
+   * ****************************************************************************************************************/
+  server.on("/docu",HTTP_GET,[](AsyncWebServerRequest *request)
+  {
+    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    response->print(getHtmlPrefix());
+    response->print(F("<div><strong>This Firmware is a complete new Implementation of the <a href='https://rcoid.de/'>Rcoid</a> Project.</strong><p> \
+                This implementation supports the same Interface for the RcOid App. Has a extended Web UI and REST-Api. Devices can be used as IR-Gateway trought MQTT. \
+                Sending and reciving IR-Codes new implemented for blocking free work. Also the storage of IR-Codes (Commands) added. This Commands can be used for MQTT and REST. \
+                Upload and Downlowad of stored commands are possible. \
+            </p><p>A new unconfigured Device will start in Accesspoint-Mode and provide a 'ESP8266 for RCoid Access Point' with User pass and Password pass. \
+                You are able to setup SSID and Password for your local WiFi-Connection. </br> \
+                From the Root-Page you have also the possibility tor reboot, remove Web Config, and reset to Factory. \
+                Only from this page you can enable IR-reciving to capture IR-Codes. </br> \
+                From the MQTT Page you can ste the Connection to your MQTT-Server and a Prefix used for the topic on MQTT. If the MQTT-Server adress empty or a '.' the MQTT communication will be disabled. \
+            </p><p>In MQTT the device will be provide its local IP-Adress and available commands. The device subscribes /[Prefix]/Cmd. If the device receive a String in this topic, this will be interpreted as a Command. \
+                The device try to find this Command and will send the Code from immedaly. \
+            </p><p>The same Functionality can be reached by sending a GET-Request to /cmd?button=xxxx. Where xxxx the name of the command. It can be taken from the Command-Page. \
+                The Command page are selfexplanating. But one Point you have to know. if You edit a Command you have to set a Code and a Name. The Name will be used as Filnename to stor the command on device Flash. \
+                </br>The Clock Icon on the Command-Page will give you the possibilty to setup one Timer to send this command later. \
+            </p></div>"));
+    response->print(getHtmlSuffix());
+    request->send(response);
+  });
 
   server.onNotFound(notFound);
 
   server.begin();
   Serial.println("HTTP-Server setup finished");
 }
-
-
 
 
 

@@ -25,7 +25,9 @@
 // Im AP-Modus ist der ESP8266 unter der IP 192.168.0.1 erreichbar
 const char *ssidAP = "ESP8266 for RCoid Access Point";
 const char *passwordAP = "passpass"; //Muss mindestens 8 Zeichen haben
-bool startMqtt=false;
+//bool startMqtt=false;
+
+
 
 /***********************************************************************************************************
     ////////////////////////////////////   SETUP Access Point  ///////////////////////////////////////////
@@ -124,4 +126,5 @@ void loop()
   //Call the IR Receiver Handler
   receive_ir_nonblock(true);
   sendIrCodeFromQueue();
+  cmdTimer.update();
 }

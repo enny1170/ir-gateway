@@ -2,15 +2,28 @@
 <body>
     <section>
         <div>
-            <div>
-                <form method='GET' action='cmd' >
-                    <div class='field'>
-                        <div class='buttons'>
-                        <input class='button' type='submit' value='test' name="button"/>
-                        </div>
-                    </div>
-                </form>
-            </div>
+            <strong>This Firmware is a complete new Implementation of the <a href="https://rcoid.de/">Rcoid</a> Project.</strong>
+            <p>
+                This implementation supports the same Interface for the RcOid App. Has a extended Web UI and REST-Api. Devices can be used as IR-Gateway trought MQTT.
+                Sending and reciving IR-Codes new implemented for blocking free work. Also the storage of IR-Codes (Commands) added. This Commands can be used for MQTT and REST.
+                Upload and Downlowad of stored commands are possible. 
+            </p>
+            <a>
+                A new unconfigured Device will start in Accesspoint-Mode and provide a 'ESP8266 for RCoid Access Point' with User pass and Password pass.
+                You are able to setup SSID and Password for your local WiFi-Connection. </br>
+                From the Root-Page you have also the possibility tor reboot, remove Web Config, and reset to Factory.
+                Only from this page you can enable IR-reciving to capture IR-Codes. </br>
+                From the MQTT Page you can ste the Connection to your MQTT-Server and a Prefix used for the topic on MQTT. If the MQTT-Server adress empty or a '.' the MQTT communication will be disabled.
+            </a>
+            <a>
+                In MQTT the device will be provide its local IP-Adress and available commands. The device subscribes /[Prefix]/Cmd. If the device receive a String in this topic, this will be interpreted as a Command. 
+                The device try to find this Command and will send the Code from immedaly.
+            </a>
+            <a>
+                The same Functionality can be reached by sending a GET-Request to /cmd?button=xxxx. Where xxxx the name of the command. It can be taken from the Command-Page.
+                The Command page are selfexplanating. But one Point you have to know. if You edit a Command you have to set a Code and a Name. The Name will be used as Filnename to stor the command on device Flash.
+                The Clock Icon on the Command-Page will give you the possibilty to setup one Timer to send this command later.
+            </a>
         </div>
     </section>
 </body>
