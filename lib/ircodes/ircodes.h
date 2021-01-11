@@ -22,7 +22,7 @@
 #endif
 
 
-#define IRCODE_SIZE 384
+#define IRCODE_SIZE 540
 #define IRCODE_FILE_NAME "/ircodes.json"
 #define IRCODE_FILE_EXTENSION ".jcmd"
 #define	IMPLEMENTATION	FIFO
@@ -330,7 +330,7 @@ void initFileSystem()
 */
 
 // Create IRCode Object by members
-void writeIrCmd(String cmd,String description,String code,String gcCode="")
+void writeIrCmd(String cmd,String description,String code,String gcCode="",int repeat=1)
 {
   const int capacity = JSON_OBJECT_SIZE(IRCODE_SIZE);
   StaticJsonDocument<capacity> doc;
@@ -344,7 +344,8 @@ void writeIrCmd(String cmd,String description,String code,String gcCode="")
   doc["cmd"]=cmd;
   doc["description"]=description;
   doc["code"]=code;
-  doc["gccode"]=gcCode;  
+  doc["gccode"]=gcCode;
+  doc["repeat"]=repeat;  
 
   serializeJson(doc,irCodeFile);
   irCodeFile.flush();
@@ -368,7 +369,8 @@ void writeIrCmd(IRcode ircode)
   doc["cmd"]=ircode.Cmd;
   doc["description"]=ircode.Description;
   doc["code"]=ircode.Code;
-  doc["gccode"]=ircode.GcCode;  
+  doc["gccode"]=ircode.GcCode;
+  doc["repeat"]=ircode.Repeat;  
 
   serializeJson(doc,irCodeFile);
   irCodeFile.flush();
@@ -457,6 +459,7 @@ IRcode readIrCmd(String cmd)
     retval.Description=doc["description"].as<String>();
     retval.Code=doc["code"].as<String>();
     retval.GcCode=doc["gccode"].as<String>();
+    retval.Repeat=doc["repeat"].as<int>();
   }
 
 
@@ -624,17 +627,19 @@ String buildCmdEditPage(String cmd)
         retval += "<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value='"+tmpCode.Description+"'></div></div>";
         retval += "<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value='"+tmpCode.Code+"'></div></div>";
         retval += "<div class='field'><div class='label'>GC Code:</div><div class='control'><input class='input' type='text' name='gccode' value='"+tmpCode.GcCode+"'></div></div>";
+        retval += "<div class='field'><div class='label'>Repeats (max 5):</div><div class='control'><input class='input' type='text' name='repeat' value='"+String(tmpCode.Repeat)+"'></div></div>";
         retval += "<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/>&nbsp<a href='delcmd?cmd="+tmpCode.Cmd+"'><i class='fa fa-trash'></i></a></div></div></form>";
     }
     else
     {
         retval += F("<form method='Post' action='/cmd' >");
-        retval += "<input type='hidden' name='orgname' value='New' />";
-        retval += "<div class='field'><div class='label'>CMD-Name*:</div><div class='control'><input class='input' type='text' name='cmdname' value='New'></div></div>";
-        retval += "<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value='New Command'></div></div>";
-        retval += "<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value=''></div></div>";
-        retval += "<div class='field'><div class='label'>GC Code:</div><div class='control'><input class='input' type='text' name='gccode' value=''></div></div>";
-        retval += "<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/>&nbsp</div></div></form>";
+        retval += F("<input type='hidden' name='orgname' value='New' />");
+        retval += F("<div class='field'><div class='label'>CMD-Name*:</div><div class='control'><input class='input' type='text' name='cmdname' value='New'></div></div>");
+        retval += F("<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value='New Command'></div></div>");
+        retval += F("<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value=''></div></div>");
+        retval += F("<div class='field'><div class='label'>GC Code:</div><div class='control'><input class='input' type='text' name='gccode' value=''></div></div>");
+        retval += F("<div class='field'><div class='label'>Repeats (max 5):</div><div class='control'><input class='input' type='text' name='repeat' value='1'></div></div>");
+        retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/>&nbsp</div></div></form>");
     }
     return retval;
 }

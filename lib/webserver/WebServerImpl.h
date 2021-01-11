@@ -549,7 +549,10 @@ void configureWebServer()
     cmd=request->getParam("button")->value();
   }
   IRcode code = readIrCmd(cmd);
-  addIrCodeToQueue(code.Code);
+  for (int i = 0; i < code.Repeat; i++)
+  {
+    addIrCodeToQueue(code.Code);
+  }
   //handleIrCode(code.Code);
   request->redirect("/cmds");
   });
@@ -565,6 +568,7 @@ void configureWebServer()
     String pCmdDescription;
     String pOrgName;
     String pGcCode;
+    int pRepeat;
     Serial.println("/cmd Post-Parameters");
     for(int i=0;i<params;i++){
       AsyncWebParameter* p = request->getParam(i);
@@ -585,7 +589,8 @@ void configureWebServer()
     if (request->hasParam("cmdname",true,false) && request->hasParam("cmddescription",true,false) && 
     request->hasParam("code",true,false) && 
     request->hasParam("orgname",true,false) && 
-    request->hasParam("gccode",true,false))
+    request->hasParam("gccode",true,false) &&
+    request->hasParam("repeat",true,false))
     {
       Serial.println("Save Cmd Values found");
       pCode = request->getParam("code",true)->value();
@@ -593,11 +598,12 @@ void configureWebServer()
       pCmdDescription=request->getParam("cmddescription",true)->value();
       pOrgName=request->getParam("orgname",true)->value();
       pGcCode=request->getParam("gccode",true)->value();
+      pRepeat=request->getParam("repeat",true)->value().toInt();
       if(pOrgName!=pCmdName && pOrgName!="")
       {
         deleteCmd(pOrgName);
       }
-      IRcode tmpCode=IRcode(pCmdName,pCmdDescription,pCode,pGcCode);
+      IRcode tmpCode=IRcode(pCmdName,pCmdDescription,pCode,pGcCode,pRepeat);
       writeIrCmd(tmpCode);
       request->redirect("/cmds");
     }

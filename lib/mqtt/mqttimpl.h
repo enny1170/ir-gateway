@@ -33,7 +33,10 @@ void testCallback(String cmd)
 {
   Serial.println("\n ...... Timmer Callback received ........");
   IRcode code = readIrCmd(cmd);
-  addIrCodeToQueue(code.Code);  
+  for (int i = 0; i < code.Repeat; i++)
+  {
+    addIrCodeToQueue(code.Code);  
+  }
 }
 ntpTimer cmdTimer(testCallback);
 
@@ -199,7 +202,10 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         {
             Serial.printf("Handle IrCode for CMD '%s' Descr: %s\n", cmdCode.Cmd.c_str(), cmdCode.Description.c_str());
             Serial.println(cmdCode.Code);
-            addIrCodeToQueue(cmdCode.Code);
+            for (int i = 0; i < cmdCode.Repeat; i++)
+            {
+              addIrCodeToQueue(cmdCode.Code);
+            }
             mqttClient.publish((mqttPrefix + "/Message").c_str(), 1, false, payloadCmd.c_str());
         }
     }
