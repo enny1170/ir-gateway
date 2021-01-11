@@ -1,0 +1,83 @@
+.............................Get IrCmd for 'lgtvonof'
+.Generated Filename:/lgtvonof.jcmd
+lfs_file_close: fd=0x3fff6ee4
+Add Code to Queue: 38000,344,169,22,20,22,20,22,63,22,20,23,19,22,20,22,20,22,20,22,63,22,63,22,20,23,62,22,63,22,63,22,63,22,63,21,20,22,20,23,19,22,63,22,20,22,20,22,20,22,20,23,62,22,63,22,63,23,19,22,63,22,63,22,63,22,63,23,1
+buildCmdPage
+.Send IR-Code from Queue: 
+Fatal exception 0(IllegalInstructionCause):
+epc1=0xd000�2��, epc2=0x00000000, epc3=0x00000000, excvaddr=0x00000000, depc=0x00000000
+
+--------------- CUT HERE FOR EXCEPTION DECODER ---------------
+
+Exception (0):
+epc1=0x4000e25d epc2=0x00000000 epc3=0x00000000 excvaddr=0x00000000 depc=0x00000000
+
+Illegal instruction
+
+>>>stack>>>
+
+ctx: cont
+sp: 3ffffd90 end: 3fffffc0 offset: 0190
+3fffff20:  3fff71b4 00000000 3fff237c 40206fd6
+3fffff30:  3fff6200 00d400df 80ffff70 3fff237d
+3fffff40:  3fffdad0 00000000 3fffff70 402298c6
+3fffff50:  00000001 4814f6e2 3ffe85e4 3fff2a3c
+3fffff60:  3fffdad0 00000000 3ffe85e4 4020722c
+3fffff70:  3fff61a4 00d200df 00fe8dd4 3fff71b4
+3fffff80:  00d200df 00000001 3ffe8dd4 3fff2a3c
+3fffff90:  3fffdad0 00000000 3ffe85e4 40207fa8
+3fffffa0:  feefeffe 00000000 3ffe85e4 4022af2f
+3fffffb0:  feefeffe feefeffe feefeffe 40101769  
+<<<stack<<<
+
+0x40206fd6 in handleIrCode(String) at lib\ircodes/ircodes.h:188
+0x402298c6 in String::operator=(String const&) at C:\Users\e.ziehe\.platformio\packages\framework-arduinoespressif8266\cores\esp8266/WString.cpp:262
+0x4020722c in sendIrCodeFromQueue() at lib\ircodes/ircodes.h:250
+0x40207fa8 in loop at src/main.cpp:382
+0x4022af2f in loop_wrapper() at C:\Users\e.ziehe\.platformio\packages\framework-arduinoespressif8266\cores\esp8266/core_esp8266_main.cpp:197
+0x40101769 in cont_wrapper at C:\Users\e.ziehe\.platformio\packages\framework-arduinoespressif8266\cores\esp8266/cont.S:81
+
+
+--------------- CUT HERE FOR EXCEPTION DECODER ---------------
+
+ ets Jan  8 2013,rst cause:2, boot mode:(3,6)
+
+load 0x4010f000, len 3584, room 16
+tail 0
+chksum 0xb0
+csum 0xb0
+v2843a5ac
+~ld
+
+SDK:2.2.2-dev(38a443e)/Core:2.7.3-3-g2843a5ac=20703003/lwIP:STABLE-2_1_2_RELEASE/glue:1.2-30-g92add50/BearSSL:5c771be
+Mounting Flash...
+
+wifi evt: 2
+Try to load WiFi-Config from file
+lfs_file_close: fd=0x3fff45b4
+ESP-0057F2A1
+SSID: WLAN2
+PASS: altes-rumpel-2
+DeviceName: Wohnzimmer
+MAC: 48:3F:DA:57:F2:A1
+scandone
+
+scandone
+state: 0 -> 2 (b0)
+state: 2 -> 3 (0)
+state: 3 -> 5 (10)
+add 0
+aid 3
+cnt
+
+connected with WLAN2, channel 6
+dhcp client start...
+wifi evt: 0
+ip:195.147.158.178,mask:255.255.255.0,gw:195.147.158.90
+wifi evt: 3
+.
+Connected to WLAN2
+IP address: 195.147.158.178
+HTTP-Server setup finished
+HTTP server started
+.........
