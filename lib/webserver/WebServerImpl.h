@@ -525,6 +525,7 @@ void configureWebServer()
 
 //Try to do it with chunked response
   server.on("/cmds", HTTP_GET, [](AsyncWebServerRequest *request) {
+      Serial.println("buildCmdPage");
       CmdsGenerator* gen=new CmdsGenerator();
       AsyncWebServerResponse *response= request->beginChunkedResponse(text_html, 
       [gen](uint8_t * buffer,size_t maxlen,size_t index) -> size_t

@@ -62,7 +62,7 @@ size_t CmdsGenerator::readData(uint8_t *buffer, size_t maxlen)
 {
     size_t bytesWritten=0;
     String dataToWrite;
-    Serial.printf("-- read maxlen: %i, offSet: %i, state: %s \n", maxlen, offSet, String(ActivePart).c_str());
+//    Serial.printf("-- read maxlen: %i, offSet: %i, state: %s \n", maxlen, offSet, String(ActivePart).c_str());
     switch (ActivePart)
     {
     case CmdsPart::None:
@@ -114,9 +114,9 @@ size_t CmdsGenerator::readData(uint8_t *buffer, size_t maxlen)
 #if defined ESP8266 && filesystem == littlefs
             if (dir.next())
             {
-                Serial.print(dir.fileName());
-                Serial.print("  ");
-                Serial.println(dir.fileSize());
+                // Serial.print(dir.fileName());
+                // Serial.print("  ");
+                // Serial.println(dir.fileSize());
                 if (dir.fileName().endsWith(IRCODE_FILE_EXTENSION))
                 {
                     int pointPos = dir.fileName().indexOf('.');
@@ -158,7 +158,7 @@ size_t CmdsGenerator::readData(uint8_t *buffer, size_t maxlen)
             else
             {
                 //no more files
-                Serial.println("\n no more files");
+//                Serial.println("\n no more files");
                 ActivePart = CmdsPart::Suffix;
                 tmpData=F("</form>");
                 tmpData+=F("<div class='field'><div class='label'>");
@@ -220,7 +220,7 @@ size_t CmdsGenerator::readData(uint8_t *buffer, size_t maxlen)
             }
             else
             {
-                Serial.println("\n no more files");
+//                Serial.println("\n no more files");
                 ActivePart = CmdsPart::Suffix;
                 tmpData=F("</form>");
                 tmpData+=F("<div class='field'><div class='label'>");
