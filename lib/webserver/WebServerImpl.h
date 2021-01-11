@@ -98,7 +98,7 @@ const char docu[] PROGMEM="<!DOCTYPE html><html><head><meta charset='utf-8'><met
     </p><p>The same Functionality can be reached by sending a GET-Request to /cmd?button=xxxx. Where xxxx the name of the command. It can be taken from the Command-Page. \
     The Command page are selfexplanating. But two points you have to know. Editing a Command you have to set a Code and a Name. The Name will be used as Filename to store the command on device Flash. \
     And also as Command to raise from MQTT.</br>The Clock Icon on the Command-Page will give you the possibilty to setup one Timer to send this command later. \
-    </p></div></div></div></section></body></html>";
+    </p>If you want to upload Commands use the .jcmd-files in the data Folder as reference. and make sure the file suffix is .jcmd.</div></div></div></section></body></html>";
 
 
 /****************************************************************************************************************************

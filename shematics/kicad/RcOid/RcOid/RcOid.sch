@@ -1,14 +1,13 @@
 EESchema Schematic File Version 4
-LIBS:RcOid-cache
 EELAYER 30 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
 Title "RcOid Ir Schaltung"
-Date "2020-10-30"
-Rev "1"
-Comp ""
+Date "2021-01-11"
+Rev "2"
+Comp "smart-devices.cf"
 Comment1 ""
 Comment2 ""
 Comment3 ""
