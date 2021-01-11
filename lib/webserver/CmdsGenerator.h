@@ -67,7 +67,7 @@ size_t CmdsGenerator::readData(uint8_t *buffer, size_t maxlen)
     {
     case CmdsPart::None:
         ActivePart = CmdsPart::Prefix;
-        tmpData = getHtmlPrefix();
+        tmpData = getHtmlPrefix()+"<form method='GET' action='cmd' >";
         //tmpData.toCharArray((char *)buffer,maxlen,offSet);
         dataToWrite=tmpData.substring(offSet, offSet+maxlen);
         bytesWritten=dataToWrite.length();

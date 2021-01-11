@@ -15,6 +15,7 @@
 #include <mqttimpl.h>
 #include <ircodes.h>
 #include <CmdsGenerator.h>
+#include <version.h>
 
 AsyncWebServer server(80);
 String htmlcontent;
@@ -891,8 +892,6 @@ void configureWebServer()
   {
     AsyncResponseStream *response=request->beginResponseStream("text/plain");
     response->printf("Free Heap: %i bytes\n",ESP.getFreeHeap());
-    response->printf("Free Stack: %i bytes\n",ESP.getFreeContStack());
-    response->printf("Heap Fragments: %i\n",ESP.getHeapFragmentation());
     request->send(response);
   });
 
