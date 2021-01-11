@@ -2,12 +2,20 @@
 This is a fork of the famous [ESP8266-RcOid](https://www.rcoid.de/ESP8266.html) Project
 
 the Hardware is changed to a Wemos D1 mini pro alternativly Wemos D1 32 (pincompatible) and the is software updated to support this.
-
+And a custom Board are developed. To easy hookup this on the Module.
 Most parts are rewritten, because I want to use this also as IR-Gateway togeter with my Smart-Home.
 So we change to ESP Async-Webser and AsyncMQTT. Adding a better WebUI to support Storage and Management of Codes via Web-Ui.
 
 To have a good Support for multiple Clients at the same Device we have designet to work without any blocking functions.
 All API's needed to support the Rcoid-App exist. So the App is fully suported.
+
+The data Folder contains some IR-Codes as example-files.
+
+This project contains also several shematics.
+1. a circurit and a pcb to simply Hookup on the given Module. (shematics/kicad/) [IR-Shield](https://www.pcbway.com/project/shareproject/IR_Shield_for_wemos_D1_pro_or_Wemos_D1_32.html)
+2. 3D printable STL-Files as for a Cover (shematic/3dprint)
+3. a Freecad Project to build or modify the Case (shematic/freecad)
+
 
 # Usage (extract from Device Readme)
     This Firmware is a complete new Implementation of the [Rcoid](https://rcoid.de/) Project.
@@ -28,4 +36,6 @@ All API's needed to support the Rcoid-App exist. So the App is fully suported.
     The Command page are selfexplanating. But two points you have to know. Editing a Command you have to set a Code and a Name. The Name will be used as Filename to store the command on device Flash.
     And also as Command to raise from MQTT. The Clock Icon on the Command-Page will give you the possibilty to setup one Timer to send this command later.
 
+    If you want to upload Commands use the .jcmd-files in the data Folder as reference. and make sure the file suffix is .jcmd.
+    
     Some devices needs to receive a Code multiple times. So we add a Option Repeat for stored Commands. This will repeat the IR-Output according to this setting. Minimum is 1 maximum 5.
