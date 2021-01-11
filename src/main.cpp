@@ -18,6 +18,7 @@
 #include <ircode.h>
 #include <ircodes.h>
 #include <mqttimpl.h>
+#include <ArduinoOTA.h>
 
 // The IR Hardware are defined in ircodes.h
 
@@ -106,6 +107,7 @@ void setup(void)
     WiFi.mode(WIFI_STA);
     Serial.println("Start Wifi");
     connectToWiFi();
+    ArduinoOTA.begin();
   }
   else
   {
@@ -127,4 +129,5 @@ void loop()
   receive_ir_nonblock(true);
   sendIrCodeFromQueue();
   cmdTimer.update();
+  ArduinoOTA.handle();
 }
