@@ -547,66 +547,66 @@ String getCmds()
 /***********************************************************************************************************************************
  *  Build a HTML Form with Buttons for each CMD
  * *********************************************************************************************************************************/
-String buildCmdPage()
-{
-    String retval="";
-    int count=0;
-    Serial.println("buildCmdPage");
-    retval += F("<form method='GET' action='cmd' >");
-    //"</form>");
-#if defined ESP8266 && filesystem == littlefs
-    Dir dir = LittleFS.openDir("/");
-    while(dir.next())
-    {
-        Serial.print(dir.fileName());
-        Serial.print("  ");
-        Serial.println(dir.fileSize());
-        if( dir.fileName().endsWith(IRCODE_FILE_EXTENSION))
-        {
-            int pointPos=dir.fileName().indexOf('.');
-            retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
-            retval += dir.fileName().substring(0,pointPos);
-            retval += F("' name='button'");
-            retval += F("/>");
-            retval += "<a href='editcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-edit'></i></a>";
-            retval += "<a href='downloadcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-download'></i></a>";
-            retval += "<a href='delcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-trash'></i></a>";
-            retval += "<a href='timer?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-clock'></i></a>";
-            retval += "</div></div>";
-            count ++;
-        }
-    }
-    retval +=F("</form>");
-#else
-    File dir = SPIFFS.open("/");
-    File file=dir.openNextFile();
-    Serial.println(file.name());
-    while(file)
-    {
-        String fileName=String(file.name());
-        if(fileName.endsWith(IRCODE_FILE_EXTENSION))
-        {
-            int pointPos=fileName.indexOf('.');
-            retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
-            retval += fileName.substring(1,pointPos);
-            retval += F("' name='button'");
-            retval += F("/>");
-            retval += "<a href='editcmd?cmd="+fileName.substring(1,pointPos)+"'><i class='fa fa-edit'></i></a>";
-            retval += "<a href='delcmd?cmd="+fileName.substring(1,pointPos)+"'><i class='fa fa-trash'></i></a>";
-            retval += "</div></div>";
-            count ++;
-        }
-        file=dir.openNextFile();
-    }
-    retval +=F("</form>");
-#endif
-    retval +="<div class='field'><div class='label'>"+String(count)+"&nbsp CMD's found on device.</div></div>";
-    retval +="<div class='field'><div class='buttons'><a class='button is-warning' href='/uploadcmd'>Upload CMD to Device</a></div></div>";
-    retval +="<div class='field'><div class='buttons'><a class='button is-success' href='/editcmd'>Create CMD</a></div></div>";
+// String buildCmdPage()
+// {
+//     String retval="";
+//     int count=0;
+//     Serial.println("buildCmdPage");
+//     retval += F("<form method='GET' action='cmd' >");
+//     //"</form>");
+// #if defined ESP8266 && filesystem == littlefs
+//     Dir dir = LittleFS.openDir("/");
+//     while(dir.next())
+//     {
+//         Serial.print(dir.fileName());
+//         Serial.print("  ");
+//         Serial.println(dir.fileSize());
+//         if( dir.fileName().endsWith(IRCODE_FILE_EXTENSION))
+//         {
+//             int pointPos=dir.fileName().indexOf('.');
+//             retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
+//             retval += dir.fileName().substring(0,pointPos);
+//             retval += F("' name='button'");
+//             retval += F("/>");
+//             retval += "<a href='editcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-edit'></i></a>";
+//             retval += "<a href='downloadcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-download'></i></a>";
+//             retval += "<a href='delcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-trash'></i></a>";
+//             retval += "<a href='timer?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-clock'></i></a>";
+//             retval += "</div></div>";
+//             count ++;
+//         }
+//     }
+//     retval +=F("</form>");
+// #else
+//     File dir = SPIFFS.open("/");
+//     File file=dir.openNextFile();
+//     Serial.println(file.name());
+//     while(file)
+//     {
+//         String fileName=String(file.name());
+//         if(fileName.endsWith(IRCODE_FILE_EXTENSION))
+//         {
+//             int pointPos=fileName.indexOf('.');
+//             retval += F("<div class='field'><div class='buttons'><input class='button' type='submit' value='");
+//             retval += fileName.substring(1,pointPos);
+//             retval += F("' name='button'");
+//             retval += F("/>");
+//             retval += "<a href='editcmd?cmd="+fileName.substring(1,pointPos)+"'><i class='fa fa-edit'></i></a>";
+//             retval += "<a href='delcmd?cmd="+fileName.substring(1,pointPos)+"'><i class='fa fa-trash'></i></a>";
+//             retval += "</div></div>";
+//             count ++;
+//         }
+//         file=dir.openNextFile();
+//     }
+//     retval +=F("</form>");
+// #endif
+//     retval +="<div class='field'><div class='label'>"+String(count)+"&nbsp CMD's found on device.</div></div>";
+//     retval +="<div class='field'><div class='buttons'><a class='button is-warning' href='/uploadcmd'>Upload CMD to Device</a></div></div>";
+//     retval +="<div class='field'><div class='buttons'><a class='button is-success' href='/editcmd'>Create CMD</a></div></div>";
 
-    return retval;
+//     return retval;
 
-}
+// }
 
 /***********************************************************************************************************************************
  *  Build a HTML Form for editing a CMD
@@ -740,7 +740,7 @@ void removeAllConfigFiles()
     {
         String fileName=String(file.name());
         Serial.print("  ");
-        Serial.print(dir.fileSize());
+        Serial.print(dir.size());
         if(!fileName.endsWith(".html"))
         {
             SPIFFS.remove(file.name());
@@ -748,7 +748,6 @@ void removeAllConfigFiles()
         }
         file=dir.openNextFile();
     }
-    retval +=F("</form>");
 #endif
 
 }

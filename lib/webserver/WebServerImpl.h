@@ -14,6 +14,7 @@
 #include <mqttconf.h>
 #include <mqttimpl.h>
 #include <ircodes.h>
+#include <CmdsGenerator.h>
 
 AsyncWebServer server(80);
 String htmlcontent;
@@ -67,6 +68,38 @@ String getHtmlSuffix()
 {
     return F("</div></div></section></body></html>");
 }
+
+const char text_html[] = "text/html";
+
+const char docu[] PROGMEM="<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'> \
+        <title>ESP-RcOid</title><link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bulma@0.8.2/css/bulma.min.css'> \
+        <script defer src='https://use.fontawesome.com/releases/v5.3.1/js/all.js'></script> \
+        <script src = 'https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script> \
+        <script>$(document).ready(function(){$('.navbar-burger').click(function() {$('.navbar-burger').toggleClass('is-active'); \
+        $('.navbar-menu').toggleClass('is-active');});});</script></head> \
+        <body><nav class = 'navbar has-shadow'><div class = 'navbar-brand'><a class = 'navbar-item' href = '/'>ESP-RcOid</a> \
+        <a role='button' class='navbar-burger' aria-label='menu' aria-expanded='true' ><span></span><span></span><span></span> \
+        </a></div><div class='navbar-menu'><div class='navbar-start'><div class='navbar-item'> \
+        <a class='navbar-item' href='/mqtt'>MQTT Settings</a> \
+        <hr><a class='navbar-item' href='cmds'>Commands</a> <a class='navbar-item' href='/docu'>Readme</a></div> \
+        </div></div><div class='navbar-end'></div></nav><section class='section'> \
+        <div class='container'><div class='content'> \
+        <div><strong>This Firmware is a complete new Implementation of the <a href='https://rcoid.de/'>Rcoid</a> Project.</strong><p> \
+    This implementation supports the same Interface for the RcOid App. Has a extended Web UI and REST-Api. Devices can be used as IR-Gateway trought MQTT. \
+    Sending and reciving IR-Codes new implemented for blocking free work. Also the storage of IR-Codes (Commands) added. This Commands can be used for MQTT and REST. \
+    Upload and Downlowad of stored commands are possible. \
+    </p><p>A new unconfigured Device will start in Accesspoint-Mode and provide a 'ESP8266 for RCoid Access Point' with User pass and Password pass. \
+    You are able to setup SSID and Password for your local WiFi-Connection. </br> \
+    From the Root-Page you have also the possibility tor reboot, remove Web Config, and reset to Factory. \
+    Only from this page you can enable IR-reciving to capture IR-Codes. </br> \
+    From the MQTT Page you can ste the Connection to your MQTT-Server and a Prefix used for the topic on MQTT. If the MQTT-Server adress empty or a '.' the MQTT communication will be disabled. \
+    </p><p>In MQTT the device will be provide its local IP-Adress and available commands. The device subscribes /[Prefix]/Cmd. If the device receive a String in this topic, this will be interpreted as a Command. \
+    The device try to find this Command and will send the Code immedaly. \
+    </p><p>The same Functionality can be reached by sending a GET-Request to /cmd?button=xxxx. Where xxxx the name of the command. It can be taken from the Command-Page. \
+    The Command page are selfexplanating. But two points you have to know. Editing a Command you have to set a Code and a Name. The Name will be used as Filename to store the command on device Flash. \
+    And also as Command to raise from MQTT.</br>The Clock Icon on the Command-Page will give you the possibilty to setup one Timer to send this command later. \
+    </p></div></div></div></section></body></html>";
+
 
 /****************************************************************************************************************************
  * Handle File Upload
@@ -171,19 +204,15 @@ void configureWebServer()
   // Handle root
   // *******************************************************************************************************
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response = request->beginResponseStream("text/html");
+    AsyncResponseStream *response = request->beginResponseStream(text_html);
     IPAddress ip = WiFi.localIP();
     response->print(getHtmlPrefix());
     if (WiFi.getMode() == WIFI_STA)
     {
-      response->print("<div class='field'><div class='label'>ESP8266-RcDroid</div> \
-        <div class='control'>STA-Mode, IP-Address: " +
-                      String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) +
-                      "</div></div>");
-      response->print("<div class='field'><div class='label'>Device Name</div> \
-        <div class='control'>" +
-                     deviceName +
-                     "</div></div>");
+      response->print(F("<div class='field'><div class='label'>ESP8266-RcDroid</div> <div class='control'>STA-Mode, IP-Address: "));
+      response->print(String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) + "</div></div>");
+      response->print(F("<div class='field'><div class='label'>Device Name</div> <div class='control'>"));
+      response->print(deviceName + "</div></div>");
       response->print(F("<div class='field'><div class='label'>Timer</div><div class='control'>"));
       response->print(cmdTimer.getTimerString());
       response->print(F("</div></div>"));               
@@ -194,10 +223,8 @@ void configureWebServer()
     }
     else
     {
-      response->print("<div class='field'><div class='label'>ESP8266-RcDroid</div> \
-                  <div class='control'>AP-Mode, IP-Address: " +
-                     String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) +
-                     "</div></div>");
+      response->print(F("<div class='field'><div class='label'>ESP8266-RcDroid</div> <div class='control'>AP-Mode, IP-Address: "));
+      response->print(String(ip[0]) + '.' + String(ip[1]) + '.' + String(ip[2]) + '.' + String(ip[3]) + "</div></div>");
       response->print(F("<div class='field'><div class='label'>Timer</div><div class='control'>"));
       response->print(cmdTimer.getTimerString());
       response->print(F("</div></div>"));               
@@ -288,12 +315,12 @@ void configureWebServer()
           writeConfig(qsid, qpass);
         }
 
-        htmlcontent = "<html><head><meta http-equiv=\"refresh\" content=\"0; URL=../\"></head><body style='font-family: sans-serif; font-size: 12px'>";
+        htmlcontent = F("<html><head><meta http-equiv=\"refresh\" content=\"0; URL=../\"></head><body style='font-family: sans-serif; font-size: 12px'>");
         htmlcontent += "OK";
-        htmlcontent += "</body></html>";
-        request->send(200, "text/html", htmlcontent);
+        htmlcontent += F("</body></html>");
+        request->send(200, text_html, htmlcontent);
 
-        Serial.println("AP_STA-Modus wird aktiviert");
+        Serial.println(F("AP_STA-Modus wird aktiviert"));
 
         ESP.restart();
       }
@@ -336,16 +363,16 @@ void configureWebServer()
  * ***************************************************************************************************/
 
   server.on("/receiveir", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    AsyncResponseStream *response=request->beginResponseStream(text_html);
     receive_ir_nonblock();
     response->print(getHtmlPrefix());
-    response->print("<div class='field'><div class='control'>");
+    response->print(F("<div class='field'><div class='control'>"));
     response->print(irReceiveState);
-    response->print("</div></div>");
+    response->print(F("</div></div>"));
     if(irReceiveFinished)
     {
         //Display the results
-        response->print("<form method='Post' action='/cmd'>");
+        response->print(F("<form method='Post' action='/cmd'>"));
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='protocoll' value='%s'></div></div>","Protocoll",irProtocoll.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='value' value='%s'></div></div>","Value",irValue.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='address' value='%s'></div></div>","Address",irAddress.c_str());
@@ -353,9 +380,9 @@ void configureWebServer()
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='command' value='%s'></div></div>","Command",irCommand.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='code' value='%s'></div></div>","Code",irCode.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='cmdname' value='%s'></div></div>","Save as CMD-Name",irCommand.c_str());
-        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='cmddescription' value='%s'></div></div>","Description","");
-        response->print("<input class='input' type='hidden' name='orgname' value='' />");
-        response->print("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save as CMD'/></div></div></form>");
+        response->print(F("<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value='%s'></div></div>"));
+        response->print(F("<input class='input' type='hidden' name='orgname' value='' />"));
+        response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save as CMD'/></div></div></form>"));
     }
     response->print(F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back</a></div></div>"));
     if(irReceiveFinished)
@@ -377,22 +404,21 @@ void configureWebServer()
  * ***************************************************************************************************/
 
   server.on("/mqtt", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    AsyncResponseStream *response=request->beginResponseStream(text_html);
   readMqttConfig();
   Serial.println("Config read success");
   response->print(getHtmlPrefix());
-  response->print("<form method='Get' action='mqttset' >");
-  response->print("<div class='field'><div class='label'>Server IP:</div> \
-    <div class='control'><input class='input' type='text' name='server' value='"+ mqttServer +"'></div></div>");
-  response->print("<div class='field'><div class='label'>Port:</div> \
-    <div class='control'><input class='input' type='text' name='port' value='"+ String(mqttPort) +"'></div></div>");
-  response->print("<div class='field'><div class='label'>Prefix:</div> \
-    <div class='control'><input class='input' type='text' name='prefix' value='"+ mqttPrefix +"'></div></div>");
-  response->print("<div class='field'><div class='label'>User Id:</div> \
-    <div class='control'><input class='input' type='text' name='user' value='"+ mqttUser +"'></div></div>");
-  response->print("<div class='field'><div class='label'>Password:</div> \
-    <div class='control'><input class='input' type='password' name='pass' value='"+ mqttPass +"'></div></div>");
-  response->print("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>");
+  response->print(F("<form method='Get' action='mqttset' ><div class='field'><div class='label'>Server IP:</div> <div class='control'><input class='input' type='text' name='server' value='"));
+  response->print(mqttServer);
+  response->print(F("'></div></div> <div class='field'><div class='label'>Port:</div> <div class='control'><input class='input' type='text' name='port' value='"));
+  response->print(String(mqttPort));
+  response->print(F("'></div></div> <div class='field'><div class='label'>Prefix:</div> <div class='control'><input class='input' type='text' name='prefix' value='"));
+  response->print(mqttPrefix);
+  response->print(F("'></div></div> <div class='field'><div class='label'>User Id:</div> <div class='control'><input class='input' type='text' name='user' value='"));
+  response->print(mqttUser);
+  response->print(F("'></div></div> <div class='field'><div class='label'>Password:</div> <div class='control'><input class='input' type='password' name='pass' value='"));
+  response->print(mqttPass);
+  response->print(F("'></div></div><div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>"));
   response->print(getHtmlSuffix());
   Serial.println("Sending Response");
   request->send(response);
@@ -426,19 +452,89 @@ void configureWebServer()
     writeMqttConfig();
   }
   setupMqtt();
+  
   request->redirect("/mqtt");
   });
 
 /*****************************************************************************************************
  * Handle /cmds
  * ***************************************************************************************************/
+// this will not work every time, because of missing ram to buffer the output stream
 
+//   server.on("/cmds", HTTP_GET, [](AsyncWebServerRequest *request) {
+//     AsyncResponseStream *response=request->beginResponseStream(text_html);
+//     response->print(getHtmlPrefix());
+//     int count=0;
+//     Serial.println("buildCmdPage");
+//     response->print(F("<form method='GET' action='cmd' >"));
+// #if defined ESP8266 && filesystem == littlefs
+//     Dir dir = LittleFS.openDir("/");
+//     while(dir.next())
+//     {
+//         // Serial.print(dir.fileName());
+//         // Serial.print("  ");
+//         // Serial.println(dir.fileSize());
+//         if( dir.fileName().endsWith(IRCODE_FILE_EXTENSION))
+//         {
+//             int pointPos=dir.fileName().indexOf('.');
+//             response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='"));
+//             response->print(dir.fileName().substring(0,pointPos));
+//             response->print(F("' name='button'/>"));
+//             response->print("<a href='editcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-edit'></i></a>");
+//             response->print("<a href='downloadcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-download'></i></a>");
+//             response->print("<a href='delcmd?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-trash'></i></a>");
+//             response->print("<a href='timer?cmd="+dir.fileName().substring(0,pointPos)+"'>&nbsp&nbsp<i class='fa fa-clock'></i></a>");
+//             response->print(F("</div></div>"));
+//             count ++;
+//         }
+//     }
+//     response->print(F("</form>"));
+// #else
+//     File dir = SPIFFS.open("/");
+//     File file=dir.openNextFile();
+// //    Serial.println(file.name());
+//     while(file)
+//     {
+//         String fileName=String(file.name());
+//         if(fileName.endsWith(IRCODE_FILE_EXTENSION))
+//         {
+//             int pointPos=fileName.indexOf('.');
+//             response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='"));
+//             response->print(fileName.substring(1,pointPos));
+//             response->print(F("' name='button'/>"));
+//             response->print("<a href='editcmd?cmd="+fileName.substring(1,pointPos)+"'>&nbsp&nbsp<i class='fa fa-edit'></i></a>");
+//             response->print("<a href='downloadcmd?cmd="+fileName.substring(1,pointPos)+"'>&nbsp&nbsp<i class='fa fa-download'></i></a>");
+//             response->print("<a href='delcmd?cmd="+fileName.substring(1,pointPos)+"'>&nbsp&nbsp<i class='fa fa-trash'></i></a>");
+//             response->print("<a href='timer?cmd="+fileName.substring(1,pointPos)+"'>&nbsp&nbsp<i class='fa fa-clock'></i></a>");
+//             response->print(F("</div></div>"));
+//             count ++;
+//         }
+//         file=dir.openNextFile();
+//     }
+//     response->print(("</form>"));
+// #endif
+//     response->print(F("<div class='field'><div class='label'>"));
+//     response->print(String(count));
+//     response->print(F("&nbsp CMD's found on device.</div></div>"));
+//     response->print(F("<div class='field'><div class='buttons'><a class='button is-warning' href='/uploadcmd'>Upload CMD to Device</a></div></div>"));
+//     response->print(F("<div class='field'><div class='buttons'><a class='button is-success' href='/editcmd'>Create CMD</a></div></div>"));
+
+//     response->print(getHtmlSuffix());
+//     request->send(response);
+//   });
+
+//Try to do it with chunked response
   server.on("/cmds", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response=request->beginResponseStream("text/html");
-    response->print(getHtmlPrefix());
-    response->print(buildCmdPage());
-    response->print(getHtmlSuffix());
-    request->send(response);
+      CmdsGenerator* gen=new CmdsGenerator();
+      AsyncWebServerResponse *response= request->beginChunkedResponse(text_html, 
+      [gen](uint8_t * buffer,size_t maxlen,size_t index) -> size_t
+      {
+        size_t len=gen->readData(buffer,maxlen);
+        //Serial.printf("\nIndex: %i\n",index);
+        if(len == 0) delete gen;
+        return len;
+      });
+      request->send(response);
   });
 
 /*****************************************************************************************************
@@ -508,45 +604,49 @@ void configureWebServer()
     {
       //Values missing
       Serial.println("Save Cmd missing values");
-      AsyncResponseStream *response=request->beginResponseStream("text/html");
+      AsyncResponseStream *response=request->beginResponseStream(text_html);
       response->print(getHtmlPrefix());
-      response->print("<form method='Post' action='/cmd'>");
-      response->print("<div class='field'><div class='label'>CMD-Name and Code must be filled</div></div>");
+      response->print(F("<form method='Post' action='/cmd'> <div class='field'><div class='label'>CMD-Name and Code must be filled</div></div>"));
       if(request->hasParam("cmdName"))
       {
-        response->print("<div class='field'><div class='label'>CMD-Name*:</div><div class='control'><input class='input' type='text' name='cmdname' value='"+request->getParam("cmdname")->value()+"'></div></div>");
-        response->print("<input class='input' type='hidden' name='orgname' value='"+request->getParam("cmdname")->value()+"'>");
+        response->print(F("<div class='field'><div class='label'>CMD-Name*:</div><div class='control'><input class='input' type='text' name='cmdname' value='"));
+        response->print(request->getParam("cmdname")->value()+"'></div></div>");
+        response->print(F("<input class='input' type='hidden' name='orgname' value='"));
+        response->printf("%s'>",request->getParam("cmdname")->value().c_str());
       }
       else
       {
-        response->print("<div class='field'><div class='label'>CMD-Name*:</div><div class='control'><input class='input' type='text' name='cmdname' value=''></div></div>");
-        response->print("<input class='input' type='hidden' name='orgname' value=''>");
+        response->print(F("<div class='field'><div class='label'>CMD-Name*:</div><div class='control'><input class='input' type='text' name='cmdname' value=''></div></div>"));
+        response->print(F("<input class='input' type='hidden' name='orgname' value=''>"));
       }
       if(request->hasParam("cmddescription"))
       {
-        response->print("<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value='"+request->getParam("cmddescription")->value()+"'></div></div>");
+        response->print(F("<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value='"));
+        response->printf("%s'></div></div>",request->getParam("cmddescription")->value().c_str());
       }
       else
       {
-        response->print("<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value=''></div></div>");
+        response->print(F("<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value=''></div></div>"));
       }
       if(request->hasParam("code"))
       {
-        response->print("<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value='"+request->getParam("code")->value()+"'></div></div>");
+        response->print(F("<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value='"));
+        response->printf("%s'></div></div>",request->getParam("code")->value().c_str());
       }
       else
       {
-        response->print("<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value=''></div></div>");
+        response->print(F("<div class='field'><div class='label'>Code*:</div><div class='control'><input class='input' type='text' name='code' value=''></div></div>"));
       }
       if(request->hasParam("gccode"))
       {
-        response->print("<div class='field'><div class='label'>GC Code:</div><div class='control'><input class='input' type='text' name='gccode' value='"+request->getParam("code")->value()+"'></div></div>");
+        response->print(F("<div class='field'><div class='label'>GC Code:</div><div class='control'><input class='input' type='text' name='gccode' value="));
+        response->printf("%s'></div></div>",request->getParam("code")->value().c_str());
       }
       else
       {
-        response->print("<div class='field'><div class='label'>GC Code:</div><div class='control'><input class='input' type='text' name='gccode' value=''></div></div>");
+        response->print(F("<div class='field'><div class='label'>GC Code:</div><div class='control'><input class='input' type='text' name='gccode' value=''></div></div>"));
       }
-      response->print("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>");
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save'/></div></div></form>"));
       response->print(getHtmlSuffix());
       request->send(response);
     }
@@ -556,7 +656,7 @@ void configureWebServer()
    * Edit Command
    * *********************************************************************************************************************************************/
   server.on("/editcmd",HTTP_GET,[](AsyncWebServerRequest *request){
-    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    AsyncResponseStream *response=request->beginResponseStream(text_html);
     String qcmd;
     if (request->hasParam("cmd"))
     {
@@ -647,12 +747,10 @@ void configureWebServer()
    * Upload CMD-File
    * *********************************************************************************************************************************************/
   server.on("/uploadcmd",HTTP_GET,[](AsyncWebServerRequest *request){
-    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    AsyncResponseStream *response=request->beginResponseStream(text_html);
     response->print(getHtmlPrefix());
-    response->print("<form method='Post' action='/uploadcmd' enctype='multipart/form-data'>");
-    response->print("<div class='field'><div class='label'>Upload a .jcmd File to Device</div></div>");
-    response->print("<div class='field'><div class='label'>CMD-File:</div><div class='file'><input type='file' name='data' multiple></div></div>");
-    response->print("<div class='field'><div class='buttons'><input class='button' type='submit' value='Upload'/></div></div></form>");
+    response->print(F("<form method='Post' action='/uploadcmd' enctype='multipart/form-data'><div class='field'><div class='label'>Upload a .jcmd File to Device</div></div> \
+    <div class='field'><div class='label'>CMD-File:</div><div class='file'><input type='file' name='data' multiple></div></div><div class='field'><div class='buttons'><input class='button' type='submit' value='Upload'/></div></div></form>"));
     response->print(getHtmlSuffix());
     request->send(response);
   });
@@ -666,9 +764,8 @@ void configureWebServer()
  * ***************************************************************************************************/
 
   server.on("/deletepass", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response=request->beginResponseStream("text/html");
-  response->print("<!DOCTYPE HTML>\r\n<html>");
-  response->print("<p>Clearing the Config</p></html>");
+    AsyncResponseStream *response=request->beginResponseStream(text_html);
+  response->print(F("<!DOCTYPE HTML>\r\n<html><p>Clearing the Config</p></html>"));
   request->send(response);
   Serial.println("clearing config");
   writeConfig("","");
@@ -682,14 +779,15 @@ void configureWebServer()
   server.on("/timer",HTTP_GET, [](AsyncWebServerRequest *request)
   {
     String qcmd;
-    AsyncResponseStream *response=request->beginResponseStream("text/html");
+    AsyncResponseStream *response=request->beginResponseStream(text_html);
     cmdTimer.update();
     response->print(getHtmlPrefix());
     if (request->hasParam("cmd"))
     {
       qcmd = request->getParam("cmd")->value();
-      response->print("<form method='Post' action='/timer'>");
-      response->print("<div class='field'><div class='label'>Timer for Command</div><div class='control'><input class='input' type='text' name='cmdname' value='"+qcmd+"'></div></div>");
+      response->print(F("<form method='Post' action='/timer'>"));
+      response->print(F("<div class='field'><div class='label'>Timer for Command</div><div class='control'><input class='input' type='text' name='cmdname' value='"));
+      response->print(qcmd + "'></div></div>");
       response->print("<input class='input' type='hidden' name='cmd' value='"+qcmd+"'>");
       response->print("<div class='field'><div class='label'>current Time:</div><div class='control'>"+timeClient.getFormattedTime()+"</div></div>");
       response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='10 Minutes' name='button'/></div></div>"));
@@ -701,8 +799,7 @@ void configureWebServer()
       response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='1.5 Hours' name='button'/></div></div>"));
       response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='2 Hours' name='button'/></div></div>"));
       response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='2.5 Hours' name='button'/></div></div>"));
-      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='3 Hours' name='button'/></div></div>"));
-      response->print("</form>");
+      response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='3 Hours' name='button'/></div></div> </form>"));
     }
     else
     {
@@ -757,18 +854,14 @@ void configureWebServer()
 
   server.on("/factory",HTTP_GET,[](AsyncWebServerRequest *request)
   {
-      AsyncResponseStream *response=request->beginResponseStream("text/html");
+      AsyncResponseStream *response=request->beginResponseStream(text_html);
       response->print(getHtmlPrefix());
-      response->print("<form method='Post' action='/factory'>");
-      response->print("<div class='field'><div class='label'>Factory Reset</div><div class='control'> \
-      This operation will be remove all configuration from device. Do you want to do this ?</div></div>");
-      response->print("<div class='field'><div class='buttons'><input class='button is-dangerous' type='submit' value='YES' name='button'/> <div class'buttons is-success'>\
-      <a href='/'>NO</a></div></div></div>");
+      response->print(F("<form method='Post' action='/factory'><div class='field'><div class='label'>Factory Reset</div><div class='control'>This operation will be remove all configuration from device. Do you want to do this ?</div></div><div class='field'><div class='buttons'><input class='button is-danger' type='submit' value='YES' name='button'/><a class='button is-success' href='/'>NO</a></div></div>"));
       response->print(getHtmlSuffix());
       request->send(response);
   });
 
-  server.on("/factory",HTTP_GET,[](AsyncWebServerRequest *request)
+  server.on("/factory",HTTP_POST,[](AsyncWebServerRequest *request)
   {
     // remove all files and reboot
     removeAllConfigFiles();
@@ -780,24 +873,19 @@ void configureWebServer()
    * ****************************************************************************************************************/
   server.on("/docu",HTTP_GET,[](AsyncWebServerRequest *request)
   {
-    AsyncResponseStream *response=request->beginResponseStream("text/html");
-    response->print(getHtmlPrefix());
-    response->print(F("<div><strong>This Firmware is a complete new Implementation of the <a href='https://rcoid.de/'>Rcoid</a> Project.</strong><p> \
-                This implementation supports the same Interface for the RcOid App. Has a extended Web UI and REST-Api. Devices can be used as IR-Gateway trought MQTT. \
-                Sending and reciving IR-Codes new implemented for blocking free work. Also the storage of IR-Codes (Commands) added. This Commands can be used for MQTT and REST. \
-                Upload and Downlowad of stored commands are possible. \
-            </p><p>A new unconfigured Device will start in Accesspoint-Mode and provide a 'ESP8266 for RCoid Access Point' with User pass and Password pass. \
-                You are able to setup SSID and Password for your local WiFi-Connection. </br> \
-                From the Root-Page you have also the possibility tor reboot, remove Web Config, and reset to Factory. \
-                Only from this page you can enable IR-reciving to capture IR-Codes. </br> \
-                From the MQTT Page you can ste the Connection to your MQTT-Server and a Prefix used for the topic on MQTT. If the MQTT-Server adress empty or a '.' the MQTT communication will be disabled. \
-            </p><p>In MQTT the device will be provide its local IP-Adress and available commands. The device subscribes /[Prefix]/Cmd. If the device receive a String in this topic, this will be interpreted as a Command. \
-                The device try to find this Command and will send the Code from immedaly. \
-            </p><p>The same Functionality can be reached by sending a GET-Request to /cmd?button=xxxx. Where xxxx the name of the command. It can be taken from the Command-Page. \
-                The Command page are selfexplanating. But one Point you have to know. if You edit a Command you have to set a Code and a Name. The Name will be used as Filnename to stor the command on device Flash. \
-                </br>The Clock Icon on the Command-Page will give you the possibilty to setup one Timer to send this command later. \
-            </p></div>"));
-    response->print(getHtmlSuffix());
+    // AsyncResponseStream *response=request->beginResponseStream("text/html");
+    // response->print(getHtmlPrefix());
+    // response->print(getHtmlSuffix());
+    // request->send(response);
+    request->send_P(200,text_html,docu);
+  });
+
+  server.on("/heap",HTTP_GET,[](AsyncWebServerRequest *request)
+  {
+    AsyncResponseStream *response=request->beginResponseStream("text/plain");
+    response->printf("Free Heap: %i bytes\n",ESP.getFreeHeap());
+    response->printf("Free Stack: %i bytes\n",ESP.getFreeContStack());
+    response->printf("Heap Fragments: %i\n",ESP.getHeapFragmentation());
     request->send(response);
   });
 
@@ -806,7 +894,6 @@ void configureWebServer()
   server.begin();
   Serial.println("HTTP-Server setup finished");
 }
-
 
 
 #endif

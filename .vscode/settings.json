@@ -2,6 +2,12 @@
     "files.associations": {
         "*.txt": "cpp",
         "cstdlib": "cpp",
-        "functional": "cpp"
+        "functional": "cpp",
+        "*.tcc": "cpp",
+        "bitset": "cpp",
+        "algorithm": "cpp",
+        "istream": "cpp",
+        "limits": "cpp",
+        "streambuf": "cpp"
     }
 }
