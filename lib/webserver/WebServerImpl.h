@@ -15,6 +15,7 @@
 #include <mqttimpl.h>
 #include <ircodes.h>
 #include <CmdsGenerator.h>
+#include <version.h>
 
 AsyncWebServer server(80);
 String htmlcontent;
