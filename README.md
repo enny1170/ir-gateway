@@ -1,7 +1,7 @@
 # Introduction 
 This is a fork of the famous [ESP8266-RcOid](https://www.rcoid.de/ESP8266.html) Project
 
-the Hardware is changed to a Wemos D1 mini pro alternativly Wemos D1 32 (pincompatible) and the software upddated to support this.
+the Hardware is changed to a Wemos D1 mini pro alternativly Wemos D1 32 (pincompatible) and the is software updated to support this.
 
 Most parts are rewritten, because I want to use this also as IR-Gateway togeter with my Smart-Home.
 So we change to ESP Async-Webser and AsyncMQTT. Adding a better WebUI to support Storage and Management of Codes via Web-Ui.
