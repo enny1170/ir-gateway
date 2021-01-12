@@ -374,30 +374,29 @@ void configureWebServer()
     {
         //Display the results
         response->print(F("<form method='Post' action='/cmd'>"));
+        response->print(F("<input class='input' type='hidden' name='gccode' value='' />"));
+        response->print(F("<input class='input' type='hidden' name='orgname' value='' />"));
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='protocoll' value='%s'></div></div>","Protocoll",irProtocoll.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='value' value='%s'></div></div>","Value",irValue.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='address' value='%s'></div></div>","Address",irAddress.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='length' value='%s'></div></div>","Length",irLength.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='command' value='%s'></div></div>","Command",irCommand.c_str());
         response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='code' value='%s'></div></div>","Code",irCode.c_str());
-        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='cmdname' value='%s'></div></div>","Save as CMD-Name",irCommand.c_str());
-        response->print(F("<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value='%s'></div></div>"));
-        response->print(F("<input class='input' type='hidden' name='orgname' value='' />"));
-        response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save as CMD'/></div></div></form>"));
-    }
-    response->print(F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back</a></div></div>"));
-    if(irReceiveFinished)
-    {
-      response->print(F("<div class='field'><a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div>"));
-      response->print(getHtmlSuffix());
-      irReceiveFinished=false;
+        response->printf("<div class='field'><div class='label'>%s:</div><div class='control'><input class='input' type='text' name='cmdname' value='%s'></div></div>","Save as CMD-Name*",irCommand.c_str());
+        response->print(F("<div class='field'><div class='label'>Description:</div><div class='control'><input class='input' type='text' name='cmddescription' value=''></div></div>"));
+        response->print(F("<div class='field'><div class='label'>Repeat's:</div><div class='control'><input class='input' type='text' name='repeat' value='1'></div></div>"));
+        response->print(F("<div class='field'><div class='buttons'><input class='button' type='submit' value='Save as CMD'/></div></div>"));
+        response->print(F("<div class='field'><a class='button is-success' href='/receiveir'>Receive IR-Signal</a></div></div></form>"));
+        response->print(getHtmlSuffix());
+        irReceiveFinished=false;
     }
     else
     {
+      response->print(F("<div class='field'><div class='buttons'><a class='button is-warning' href='/'><- back</a></div></div>"));
       //Send header with Meta Tags
       response->print(F("</div></div></section></body><head><meta http-equiv='refresh' content='2'></head></html>"));
     }
-      request->send(response);
+    request->send(response);
   });
 
 /*****************************************************************************************************
