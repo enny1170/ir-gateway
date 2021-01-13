@@ -4,8 +4,8 @@
 
 #define VERSION_MAJOR 2
 #define VERSION_MINOR 0
-#define VERSION_BUILD 1
+#define VERSION_BUILD 3
 
-const char version_string[]="V2.0.1" ;
+#define VERSION_STRING "2.0.3" 
 
 #endif
