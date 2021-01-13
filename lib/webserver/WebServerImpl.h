@@ -16,6 +16,7 @@
 #include <ircodes.h>
 #include <CmdsGenerator.h>
 #include <version.h>
+#include <AsyncElegantOTA.h>
 
 AsyncWebServer server(80);
 String htmlcontent;
@@ -56,8 +57,9 @@ String getHtmlPrefix()
         <body><nav class = 'navbar has-shadow'><div class = 'navbar-brand'><a class = 'navbar-item' href = '/'>ESP-RcOid</a> \
         <a role='button' class='navbar-burger' aria-label='menu' aria-expanded='true' ><span></span><span></span><span></span> \
         </a></div><div class='navbar-menu'><div class='navbar-start'><div class='navbar-item'> \
-        <a class='navbar-item' href='/mqtt'>MQTT Settings</a> \
-        <hr><a class='navbar-item' href='cmds'>Commands</a> <a class='navbar-item' href='/docu'>Readme</a></div> \
+        <a class='navbar-item' href='/cmds'>Commands</a> \
+        <hr><a class='navbar-item' href='/mqtt'>MQTT Settings</a> <a class='navbar-item' href='/receiveir'>Receive-IR</a> <a class='navbar-item' href='/docu'>Readme</a> \
+        <a class='navbar-item' href='/update'>Firmware update</a></div> </div> \
         </div></div><div class='navbar-end'></div></nav><section class='section'> \
         <div class='container'><div class='content'>");
 }
@@ -67,7 +69,7 @@ String getHtmlPrefix()
 */
 String getHtmlSuffix()
 {
-    return F("</div></div></section></body></html>");
+    return "</div></div></section><footer class='footer'><div class='content has-text-centered'><p><i class='fa fa-copyright'></i> by smart-devices.cf 2021 - Version " + String(VERSION_STRING) +"</p></div></footer></body></html>";
 }
 
 const char text_html[] = "text/html";
@@ -81,8 +83,8 @@ const char docu[] PROGMEM="<!DOCTYPE html><html><head><meta charset='utf-8'><met
         <body><nav class = 'navbar has-shadow'><div class = 'navbar-brand'><a class = 'navbar-item' href = '/'>ESP-RcOid</a> \
         <a role='button' class='navbar-burger' aria-label='menu' aria-expanded='true' ><span></span><span></span><span></span> \
         </a></div><div class='navbar-menu'><div class='navbar-start'><div class='navbar-item'> \
-        <a class='navbar-item' href='/mqtt'>MQTT Settings</a> \
-        <hr><a class='navbar-item' href='cmds'>Commands</a> <a class='navbar-item' href='/docu'>Readme</a></div> \
+        <a class='navbar-item' href='/cmds'>Commands</a> \
+        <hr><a class='navbar-item' href='/mqtt'>MQTT Settings</a> <a class='navbar-item' href='/receiveir'>Receive-IR</a> <a class='navbar-item' href='/docu'>Readme</a> </div> </div> \
         </div></div><div class='navbar-end'></div></nav><section class='section'> \
         <div class='container'><div class='content'> \
         <div><strong>This Firmware is a complete new Implementation of the <a href='https://rcoid.de/'>Rcoid</a> Project.</strong><p> \
@@ -767,7 +769,7 @@ void configureWebServer()
       }, handleUpload);
 
 /*****************************************************************************************************
- * Handle //deletepass
+ * Handle /deletepass
  * ***************************************************************************************************/
 
   server.on("/deletepass", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -895,7 +897,7 @@ void configureWebServer()
   });
 
   server.onNotFound(notFound);
-
+  AsyncElegantOTA.begin(&server);
   server.begin();
   Serial.println("HTTP-Server setup finished");
 }
