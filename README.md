@@ -9,8 +9,6 @@ So we change to ESP Async-Webser and AsyncMQTT. Adding a better WebUI to support
 To have a good Support for multiple Clients at the same Device we have designet to work without any blocking functions.
 All API's needed to support the Rcoid-App exist. So the App is fully suported.
 
-The data Folder contains some IR-Codes as example-files.
-
 This project contains also several shematics.
 1. a circurit and a pcb to simply Hookup on the given Module. (shematics/kicad/) [IR-Shield](https://www.pcbway.com/project/shareproject/IR_Shield_for_wemos_D1_pro_or_Wemos_D1_32.html)
 2. 3D printable STL-Files as for a Cover (shematic/3dprint)
@@ -24,7 +22,7 @@ This project contains also several shematics.
     Sending and reciving IR-Codes new implemented for blocking free work. Also the storage of IR-Codes (Commands) added. This Commands can be used for MQTT and REST. 
     Upload and Downlowad of stored commands are possible. 
 
-    A new unconfigured Device will start in Accesspoint-Mode and provide a 'ESP8266 for RCoid Access Point' with User pass and Password pass. 
+    A new unconfigured Device will start in Accesspoint-Mode and provide a 'ESP8266 for RCoid Access Point' with Password passpass on IP 192.168.0.1. 
     You are able to setup SSID and Password for your local WiFi-Connection.
     From the Root-Page you have also the possibility tor reboot, remove Web Config, and reset to Factory.
     Only from this page you can enable IR-reciving to capture IR-Codes.
@@ -36,6 +34,4 @@ This project contains also several shematics.
     The Command page are selfexplanating. But two points you have to know. Editing a Command you have to set a Code and a Name. The Name will be used as Filename to store the command on device Flash.
     And also as Command to raise from MQTT. The Clock Icon on the Command-Page will give you the possibilty to setup one Timer to send this command later.
 
-    If you want to upload Commands use the .jcmd-files in the data Folder as reference. and make sure the file suffix is .jcmd.
-    
     Some devices needs to receive a Code multiple times. So we add a Option Repeat for stored Commands. This will repeat the IR-Output according to this setting. Minimum is 1 maximum 5.

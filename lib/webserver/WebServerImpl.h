@@ -69,7 +69,8 @@ String getHtmlPrefix()
 */
 String getHtmlSuffix()
 {
-    return "</div></div></section><footer class='footer'><div class='content has-text-centered'><p><i class='fa fa-copyright'></i> by smart-devices.cf 2021 - Version " + String(VERSION_STRING) +"</p></div></footer></body></html>";
+    return "</div></div></section><footer class='footer'><div class='content has-text-centered'><p><i class='fa fa-copyright'></i> by smart-devices.cf 2021 - Version " + 
+    String(VERSION_MAJOR)+"."+String(VERSION_MINOR)+"."+String(VERSION_BUILD) +"</p></div></footer></body></html>";
 }
 
 const char text_html[] = "text/html";
